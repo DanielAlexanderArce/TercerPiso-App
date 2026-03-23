@@ -214,7 +214,7 @@ export const SchedulePage: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Calendar Section */}
           <div className="lg:col-span-4">
-            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200/60 shadow-sm sticky top-24">
+            <div className="bg-white p-6 md:p-8 rounded-2xl md:rounded-[2.5rem] border border-slate-200/60 shadow-sm sticky top-24">
               <div className="flex items-center gap-3 mb-6">
                 <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
                   <CalendarIcon size={20} />
@@ -257,16 +257,16 @@ export const SchedulePage: React.FC = () => {
                     exit={{ opacity: 0, y: -20 }}
                     className="bg-white p-8 md:p-10 rounded-[2.5rem] border border-slate-200/60 shadow-xl shadow-slate-200/40 relative group"
                   >
-                    <div className="flex justify-between items-start mb-8">
-                      <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 bg-slate-900 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-slate-200">
-                          <UserIcon size={28} />
+                    <div className="flex justify-between items-start mb-6 md:mb-8">
+                      <div className="flex items-center gap-3 md:gap-4">
+                        <div className="w-12 h-12 md:w-14 md:h-14 bg-slate-900 text-white rounded-xl md:rounded-2xl flex items-center justify-center shadow-lg shadow-slate-200">
+                          <UserIcon size={24} md:size={28} />
                         </div>
                         <div>
-                          <h4 className="text-2xl font-black text-slate-900 tracking-tight">
+                          <h4 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">
                             {schedule.assignedUserName}
                           </h4>
-                          <p className="text-emerald-600 text-xs font-bold uppercase tracking-widest mt-0.5">
+                          <p className="text-emerald-600 text-[10px] md:text-xs font-bold uppercase tracking-widest mt-0.5">
                             Inquilino Responsable
                           </p>
                         </div>
@@ -291,9 +291,9 @@ export const SchedulePage: React.FC = () => {
                       )}
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                       {schedule.assignments.map((assign, idx) => (
-                        <div key={idx} className="p-6 bg-slate-50/50 rounded-[2rem] border border-slate-100 hover:border-emerald-200 transition-all group/item">
+                        <div key={idx} className="p-5 md:p-6 bg-slate-50/50 rounded-2xl md:rounded-[2rem] border border-slate-100 hover:border-emerald-200 transition-all group/item">
                           <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-3">
                               <div className={cn(

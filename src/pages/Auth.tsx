@@ -145,16 +145,16 @@ export const AuthPage: React.FC<{ mode?: 'login' | 'register' }> = ({ mode: init
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="max-w-md w-full bg-white rounded-3xl shadow-xl border border-zinc-100 p-6 md:p-8"
+        className="max-w-md w-full bg-white rounded-2xl md:rounded-3xl shadow-xl border border-zinc-100 p-6 md:p-10"
       >
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-zinc-900 text-white rounded-2xl mb-4 shadow-lg">
-            <ShieldCheck size={32} />
+        <div className="text-center mb-6 md:mb-10">
+          <div className="inline-flex items-center justify-center w-14 h-14 md:w-20 md:h-20 bg-zinc-900 text-white rounded-xl md:rounded-2xl mb-4 md:mb-6 shadow-lg">
+            <ShieldCheck size={28} md:size={40} />
           </div>
-          <h1 className="text-2xl font-bold text-zinc-900">
+          <h1 className="text-xl md:text-3xl font-bold text-zinc-900 tracking-tight">
             {mode === 'login' ? 'Bienvenido de nuevo' : 'Crea tu cuenta'}
           </h1>
-          <p className="text-zinc-500 mt-2">Gestión Residencial • Tercer Piso</p>
+          <p className="text-zinc-500 mt-2 text-sm md:text-base font-medium">Gestión Residencial • Tercer Piso</p>
         </div>
 
         {error && (

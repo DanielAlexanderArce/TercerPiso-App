@@ -85,7 +85,7 @@ export const NotificationCenter: React.FC = () => {
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="absolute right-0 mt-2 w-80 md:w-96 bg-white rounded-3xl shadow-2xl border border-zinc-100 z-50 overflow-hidden"
+              className="absolute right-0 mt-2 w-[calc(100vw-2rem)] sm:w-80 md:w-96 bg-white rounded-3xl shadow-2xl border border-zinc-100 z-50 overflow-hidden"
             >
               <div className="p-6 border-b border-zinc-100 flex justify-between items-center">
                 <h3 className="font-bold text-zinc-900">Notificaciones</h3>

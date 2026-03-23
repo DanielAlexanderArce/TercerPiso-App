@@ -161,18 +161,18 @@ export const Payments: React.FC = () => {
         </div>
 
         {/* Stats Summary */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-10">
-          <div className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6 mb-8 md:mb-10">
+          <div className="bg-white p-5 md:p-6 rounded-2xl md:rounded-[2rem] border border-slate-200/60 shadow-sm">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Recaudado</p>
-            <p className="text-3xl font-black text-slate-900">${payments.filter(p => p.status === 'COMPLETED').reduce((acc, curr) => acc + curr.amount, 0)}</p>
+            <p className="text-2xl md:text-3xl font-black text-slate-900">${payments.filter(p => p.status === 'COMPLETED').reduce((acc, curr) => acc + curr.amount, 0)}</p>
           </div>
-          <div className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-sm">
+          <div className="bg-white p-5 md:p-6 rounded-2xl md:rounded-[2rem] border border-slate-200/60 shadow-sm">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Pendientes</p>
-            <p className="text-3xl font-black text-amber-500">{payments.filter(p => p.status === 'PENDING').length}</p>
+            <p className="text-2xl md:text-3xl font-black text-amber-500">{payments.filter(p => p.status === 'PENDING').length}</p>
           </div>
-          <div className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-sm">
+          <div className="bg-white p-5 md:p-6 rounded-2xl md:rounded-[2rem] border border-slate-200/60 shadow-sm">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Este Mes</p>
-            <p className="text-3xl font-black text-emerald-500">{payments.filter(p => p.month === format(new Date(), 'yyyy-MM')).length}</p>
+            <p className="text-2xl md:text-3xl font-black text-emerald-500">{payments.filter(p => p.month === format(new Date(), 'yyyy-MM')).length}</p>
           </div>
         </div>
 
@@ -207,9 +207,9 @@ export const Payments: React.FC = () => {
         </div>
 
         {/* Payments List */}
-        <div className="bg-white rounded-[2.5rem] border border-slate-200/60 shadow-xl shadow-slate-200/40 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+        <div className="bg-white rounded-2xl md:rounded-[2.5rem] border border-slate-200/60 shadow-xl shadow-slate-200/40 overflow-hidden">
+          <div className="overflow-x-auto scrollbar-hide">
+            <table className="w-full text-left border-collapse min-w-[600px]">
               <thead>
                 <tr className="bg-slate-50/50 border-b border-slate-100">
                   <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Inquilino</th>
