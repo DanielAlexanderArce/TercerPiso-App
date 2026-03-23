@@ -1,0 +1,164 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId}
+    // Fields:
+    //   - uid: string (required)
+    //   - email: string (required, email format)
+    //   - username: string (optional)
+    //   - name: string (required)
+    //   - role: string (required, ADMIN|INQUILINO)
+    //   - roomNumber: string (optional)
+    //   - createdAt: number (required)
+    //
+    // Collection: payments
+    // Document ID: {paymentId}
+    // Fields:
+    //   - id: string (required)
+    //   - userId: string (required)
+    //   - userName: string (required)
+    //   - month: string (required, YYYY-MM)
+    //   - amount: number (required)
+    //   - status: string (required, PENDING|COMPLETED)
+    //   - evidenceUrl: string (optional)
+    //   - createdAt: number (required)
+    //   - updatedAt: number (required)
+    //
+    // Collection: schedules
+    // Document ID: {scheduleId}
+    // Fields:
+    //   - id: string (required)
+    //   - weekStart: string (required, date)
+    //   - weekEnd: string (required, date)
+    //   - assignments: list (required)
+    //   - createdAt: number (required)
+    //   - updatedAt: number (optional)
+    //
+    // Collection: notifications
+    // Document ID: {notificationId}
+    // Fields:
+    //   - id: string (required)
+    //   - userId: string (required)
+    //   - title: string (required)
+    //   - message: string (required)
+    //   - type: string (required, INFO|WARNING|SUCCESS)
+    //   - read: bool (required)
+    //   - createdAt: number (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && (request.auth.uid == userId || request.auth.token.email == userId);
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && (resource.data.uid == request.auth.uid || resource.data.email == request.auth.token.email);
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        ((request.auth.token.email == "alexanderarcedaniel@gmail.com" && request.auth.token.email_verified == true) ||
+         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN') ||
+         (exists(/databases/$(database)/documents/users/$(request.auth.token.email.lower())) && 
+          get(/databases/$(database)/documents/users/$(request.auth.token.email.lower())).data.role == 'ADMIN'));
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['email', 'name', 'role', 'createdAt']) &&
+             data.keys().hasOnly(['uid', 'email', 'username', 'name', 'role', 'createdAt']) &&
+             (!('uid' in data) || (data.uid is string && data.uid.size() < 128)) &&
+             data.email is string && data.email.size() < 100 &&
+             (!('username' in data) || (data.username is string && data.username.size() < 50)) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.role in ['ADMIN', 'INQUILINO'] &&
+             data.createdAt is number;
+    }
+
+    function isValidPayment(data) {
+      return data.keys().hasAll(['userId', 'userName', 'month', 'amount', 'status', 'createdAt', 'updatedAt']) &&
+             data.keys().hasOnly(['id', 'userId', 'userName', 'month', 'amount', 'status', 'evidenceUrl', 'createdAt', 'updatedAt']) &&
+             (!('id' in data) || (data.id is string && data.id.size() < 128)) &&
+             data.userId is string && data.userId.size() < 128 &&
+             data.userName is string && data.userName.size() < 100 &&
+             data.month is string && data.month.matches('^\\d{4}-\\d{2}$') &&
+             data.amount is number && data.amount >= 0 &&
+             data.status in ['PENDING', 'COMPLETED'] &&
+             (!('evidenceUrl' in data) || (data.evidenceUrl == null || (data.evidenceUrl is string && data.evidenceUrl.size() < 2000000))) &&
+             data.createdAt is number &&
+             data.updatedAt is number;
+    }
+
+    function isValidSchedule(data) {
+      return data.keys().hasAll(['weekStart', 'weekEnd', 'assignedUserId', 'assignments', 'createdAt']) &&
+             data.keys().hasOnly(['id', 'weekStart', 'weekEnd', 'assignedUserId', 'assignedUserName', 'assignments', 'createdAt', 'updatedAt']) &&
+             (!('id' in data) || (data.id is string && data.id.size() < 128)) &&
+             data.weekStart is string && data.weekStart.size() < 50 &&
+             data.weekEnd is string && data.weekEnd.size() < 50 &&
+             data.assignedUserId is string && data.assignedUserId.size() < 128 &&
+             (!('assignedUserName' in data) || (data.assignedUserName is string && data.assignedUserName.size() < 100)) &&
+             data.assignments is list && data.assignments.size() < 5 &&
+             data.createdAt is number &&
+             (!('updatedAt' in data) || (data.updatedAt is number));
+    }
+
+    function isValidNotification(data) {
+      return data.keys().hasAll(['userId', 'title', 'message', 'type', 'read', 'createdAt']) &&
+             data.keys().hasOnly(['id', 'userId', 'title', 'message', 'type', 'read', 'createdAt']) &&
+             (!('id' in data) || (data.id is string && data.id.size() < 128)) &&
+             data.userId is string && data.userId.size() < 128 &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.message is string && data.message.size() > 0 && data.message.size() < 1000 &&
+             data.type in ['INFO', 'WARNING', 'SUCCESS'] &&
+             data.read is bool &&
+             data.createdAt is number;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (isAdmin() || isOwner(userId) || isDocOwner() || resource.data.email == request.auth.token.email);
+      allow list: if isAuthenticated() && (isAdmin() || (request.query.limit <= 1 && (request.query.filters.email == request.auth.token.email || request.query.filters.username != null)));
+      allow create: if (isAdmin() || (isAuthenticated() && request.auth.token.email == userId && request.resource.data.role == 'INQUILINO' && request.resource.data.email == request.auth.token.email)) && isValidUser(request.resource.data);
+      allow update: if isAuthenticated() && (isAdmin() || ((isOwner(userId) || isDocOwner()) && isValidUser(request.resource.data)));
+      allow delete: if isAdmin();
+    }
+
+    match /payments/{paymentId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || (isAuthenticated() && (request.auth.uid == request.resource.data.userId || request.auth.token.email == request.resource.data.userId) && isValidPayment(request.resource.data));
+      allow update: if isAdmin() || (isAuthenticated() && (request.auth.uid == resource.data.userId || request.auth.token.email == resource.data.userId) && isValidPayment(request.resource.data));
+      allow delete: if isAdmin();
+    }
+
+    match /schedules/{scheduleId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() && isValidSchedule(request.resource.data);
+      allow delete: if isAdmin();
+      allow update: if (isAdmin() || (isAuthenticated() && (resource.data.assignedUserId == request.auth.uid || resource.data.assignedUserId == request.auth.token.email.lower()))) && isValidSchedule(request.resource.data);
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && (isAdmin() || request.auth.uid == resource.data.userId || request.auth.token.email == resource.data.userId);
+      allow create: if isAdmin() && isValidNotification(request.resource.data);
+      allow update: if isAuthenticated() && (isAdmin() || request.auth.uid == resource.data.userId || request.auth.token.email == resource.data.userId) && isValidNotification(request.resource.data);
+      allow delete: if isAdmin();
+    }
+  }
+}

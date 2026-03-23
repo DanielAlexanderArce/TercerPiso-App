@@ -1,0 +1,74 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-brand-primary: #0f172a;
+  --color-brand-accent: #10b981;
+  --color-brand-surface: #f8fafc;
+}
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}
+
+.glass-card {
+  @apply bg-white/80 backdrop-blur-md border border-slate-200/60 shadow-sm;
+}
+
+.premium-shadow {
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.04), 0 4px 10px -5px rgba(0, 0, 0, 0.02);
+}
+
+/* Premium Calendar Overrides */
+.react-calendar {
+  border: none !important;
+  font-family: var(--font-sans) !important;
+  background: white !important;
+  width: 100% !important;
+}
+
+.react-calendar__navigation button {
+  @apply text-slate-900 font-bold rounded-xl hover:bg-slate-50 transition-colors;
+  border: none !important;
+}
+
+.react-calendar__month-view__weekdays {
+  @apply text-slate-400 font-bold text-[10px] uppercase tracking-widest mb-4;
+}
+
+.react-calendar__tile {
+  @apply rounded-xl p-4 text-sm font-medium transition-all;
+}
+
+.react-calendar__tile--now {
+  @apply bg-emerald-50 text-emerald-600 font-bold;
+}
+
+.react-calendar__tile--active {
+  @apply bg-slate-900 text-white font-bold shadow-lg shadow-slate-200;
+}
+
+.react-calendar__tile:hover {
+  @apply bg-slate-50;
+}
+
+.react-calendar__tile--active:hover {
+  @apply bg-slate-800;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-200 rounded-full hover:bg-slate-300 transition-colors;
+}

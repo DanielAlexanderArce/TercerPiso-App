@@ -1,0 +1,96 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Inquilino o Administrador del edificio",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "username": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["ADMIN", "INQUILINO"] },
+        "roomNumber": { "type": "string" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["uid", "email", "name", "role", "createdAt"]
+    },
+    "Payment": {
+      "title": "Payment",
+      "description": "Registro de pago de internet",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "month": { "type": "string" },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["PENDING", "COMPLETED"] },
+        "evidenceUrl": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["id", "userId", "month", "amount", "status", "createdAt", "updatedAt"]
+    },
+    "Schedule": {
+      "title": "Schedule",
+      "description": "Asignación semanal de roles",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "weekStart": { "type": "string", "format": "date" },
+        "weekEnd": { "type": "string", "format": "date" },
+        "assignedUserId": { "type": "string" },
+        "assignedUserName": { "type": "string" },
+        "assignments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "role": { "type": "string", "enum": ["Limpieza de Baño", "Limpieza de Pasadizo"] },
+              "status": { "type": "string", "enum": ["PENDING", "COMPLETED"] },
+              "evidenceUrl": { "type": "string" },
+              "completedAt": { "type": "number" }
+            }
+          }
+        },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["id", "weekStart", "weekEnd", "assignedUserId", "assignments", "createdAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "Alerta o notificación para el usuario",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string", "enum": ["INFO", "WARNING", "SUCCESS"] },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "userId", "title", "message", "type", "read", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Perfiles de usuario"
+    },
+    "/payments/{paymentId}": {
+      "schema": "Payment",
+      "description": "Pagos de internet"
+    },
+    "/schedules/{scheduleId}": {
+      "schema": "Schedule",
+      "description": "Asignaciones semanales"
+    },
+    "/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "Notificaciones de usuario"
+    }
+  }
+}
