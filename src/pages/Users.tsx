@@ -187,7 +187,7 @@ export const Users: React.FC = () => {
             <button
               onClick={() => {
                 setEditingUser(null);
-                setEditForm({ name: '', roomNumber: '', username: '' });
+                setEditForm({ name: '', roomNumber: '', username: '', email: '' });
                 setIsEditModalOpen(true);
               }}
               className="px-6 py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 active:scale-95 flex items-center gap-2"
@@ -361,7 +361,7 @@ export const Users: React.FC = () => {
 
       {/* Edit Modal */}
       <AnimatePresence>
-        {isEditModalOpen && editingUser && (
+        {isEditModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
             <motion.div 
               initial={{ opacity: 0, y: 20, scale: 0.95 }}
@@ -438,7 +438,7 @@ export const Users: React.FC = () => {
                     type="submit"
                     className="flex-1 py-4 bg-slate-900 text-white font-bold rounded-2xl hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 active:scale-[0.98]"
                   >
-                    Guardar Cambios
+                    {editingUser ? 'Guardar Cambios' : 'Crear Inquilino'}
                   </button>
                 </div>
               </form>
