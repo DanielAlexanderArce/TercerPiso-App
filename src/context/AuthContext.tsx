@@ -21,7 +21,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     let unsubUser: (() => void) | null = null;
 
-    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
       // Cleanup previous user listener if it exists
       if (unsubUser) {
         unsubUser();
@@ -29,39 +29,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (firebaseUser && firebaseUser.email) {
-        try {
-          const email = firebaseUser.email.toLowerCase();
-          const userDocRef = doc(db, 'users', email);
-          
-          // Initial fetch
-          const userDoc = await getDoc(userDocRef);
-
-          if (userDoc.exists()) {
-            setUser({ ...userDoc.data(), uid: userDoc.id } as User);
-            
-            // Real-time listener for user profile changes
-            unsubUser = onSnapshot(userDocRef, (doc) => {
-              if (doc.exists()) {
-                setUser({ ...doc.data(), uid: doc.id } as User);
-              } else {
-                setUser(null);
-              }
-            }, (error) => {
-              handleFirestoreError(error, OperationType.GET, `users/${email}`);
-            });
+        const email = firebaseUser.email.toLowerCase();
+        const userDocRef = doc(db, 'users', email);
+        
+        // Use onSnapshot directly to handle creation and updates
+        unsubUser = onSnapshot(userDocRef, (docSnap) => {
+          if (docSnap.exists()) {
+            setUser({ ...docSnap.data(), uid: docSnap.id } as User);
           } else {
             setUser(null);
           }
-        } catch (error) {
-          handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.email}`);
+          setLoading(false);
+          setIsAuthReady(true);
+        }, (error) => {
+          handleFirestoreError(error, OperationType.GET, `users/${email}`);
           setUser(null);
-        }
+          setLoading(false);
+          setIsAuthReady(true);
+        });
       } else {
         setUser(null);
+        setLoading(false);
+        setIsAuthReady(true);
       }
-      
-      setLoading(false);
-      setIsAuthReady(true);
     });
 
     return () => {

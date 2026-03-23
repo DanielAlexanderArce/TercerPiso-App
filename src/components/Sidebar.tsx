@@ -2,6 +2,8 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Brush, CreditCard, Users, LogOut, Menu, X, Calendar as CalendarIcon, Settings } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { auth } from '../firebase';
+import { signOut } from 'firebase/auth';
 
 interface SidebarProps {
   role: 'ADMIN' | 'INQUILINO';
@@ -23,6 +25,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ role, activeTab, onTabChange, 
   ];
 
   const filteredItems = menuItems.filter(item => item.roles.includes(role));
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      navigate('/login');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
 
   return (
     <>
@@ -90,7 +101,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ role, activeTab, onTabChange, 
               </div>
             </div>
             <button 
-              onClick={() => navigate('/login')}
+              onClick={handleLogout}
               className="flex items-center w-full px-4 py-3 text-sm font-bold text-slate-500 rounded-xl hover:bg-red-500/10 hover:text-red-400 transition-all duration-200"
             >
               <LogOut className="mr-3" size={18} />

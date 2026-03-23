@@ -54,7 +54,7 @@ export const AuthPage: React.FC<{ mode?: 'login' | 'register' }> = ({ mode: init
         }
       }
 
-      navigate('/');
+      window.location.href = '/';
     } catch (err: any) {
       console.error('Auth error:', err);
       setError(err.message || 'Ocurrió un error al iniciar sesión.');
@@ -101,7 +101,7 @@ export const AuthPage: React.FC<{ mode?: 'login' | 'register' }> = ({ mode: init
             createdAt: Date.now()
           });
         }
-        navigate('/');
+        window.location.href = '/';
       } else {
         // Registration
         const emailLower = email.toLowerCase();
@@ -131,7 +131,7 @@ export const AuthPage: React.FC<{ mode?: 'login' | 'register' }> = ({ mode: init
           createdAt: Date.now()
         });
         
-        navigate('/');
+        window.location.href = '/';
       }
     } catch (err: any) {
       setError(err.message);
