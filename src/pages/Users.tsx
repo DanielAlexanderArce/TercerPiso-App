@@ -337,20 +337,20 @@ export const Users: React.FC = () => {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 10 }}
-                  className="p-6 space-y-4"
+                  className="p-4 space-y-3"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400 font-bold text-lg border border-slate-200">
+                      <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400 font-bold text-base border border-slate-200">
                         {u.name.charAt(0)}
                       </div>
                       <div>
-                        <p className="font-bold text-slate-900">{u.name}</p>
-                        <p className="text-xs text-slate-400 font-medium">@{u.username || 'sin_usuario'}</p>
+                        <p className="font-bold text-slate-900 text-sm">{u.name}</p>
+                        <p className="text-[10px] text-slate-400 font-medium">@{u.username || 'sin_usuario'}</p>
                       </div>
                     </div>
                     <span className={cn(
-                      "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider border",
+                      "px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider border",
                       u.role === 'ADMIN' 
                         ? "bg-slate-900 text-white border-slate-900" 
                         : "bg-emerald-50 text-emerald-600 border-emerald-100"
@@ -359,41 +359,41 @@ export const Users: React.FC = () => {
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 py-2">
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Correo</p>
-                      <p className="text-xs text-slate-600 truncate">{u.email}</p>
+                  <div className="grid grid-cols-2 gap-3 py-1">
+                    <div className="space-y-0.5">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Correo</p>
+                      <p className="text-[11px] text-slate-600 truncate">{u.email}</p>
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Habitación</p>
-                      <p className="text-xs text-slate-600">{u.roomNumber || 'N/A'}</p>
+                    <div className="space-y-0.5">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Habitación</p>
+                      <p className="text-[11px] text-slate-600">{u.roomNumber || 'N/A'}</p>
                     </div>
                   </div>
 
                   <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-50">
                     <button 
                       onClick={() => openEditModal(u)}
-                      className="flex-1 py-2.5 flex items-center justify-center gap-2 text-emerald-600 bg-emerald-50 rounded-xl text-xs font-bold transition-all border border-emerald-100"
+                      className="flex-1 py-2 flex items-center justify-center gap-1.5 text-emerald-600 bg-emerald-50 rounded-lg text-[10px] font-bold transition-all border border-emerald-100"
                     >
-                      <Edit2 size={14} />
+                      <Edit2 size={12} />
                       Editar
                     </button>
                     <button 
                       onClick={() => toggleRole(u)}
                       className={cn(
-                        "flex-1 py-2.5 flex items-center justify-center gap-2 rounded-xl text-xs font-bold transition-all border",
+                        "flex-1 py-2 flex items-center justify-center gap-1.5 rounded-lg text-[10px] font-bold transition-all border",
                         u.role === 'ADMIN' ? "text-amber-600 bg-amber-50 border-amber-100" : "text-slate-600 bg-slate-50 border-slate-200"
                       )}
                     >
-                      <Shield size={14} />
+                      <Shield size={12} />
                       Rol
                     </button>
                     {u.uid !== currentUser?.uid && (
                       <button 
                         onClick={() => deleteUser(u.uid)}
-                        className="p-2.5 text-red-600 bg-red-50 rounded-xl transition-all border border-red-100"
+                        className="p-2 text-red-600 bg-red-50 rounded-lg transition-all border border-red-100"
                       >
-                        <Trash2 size={18} />
+                        <Trash2 size={14} />
                       </button>
                     )}
                   </div>

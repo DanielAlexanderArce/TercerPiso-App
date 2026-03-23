@@ -306,7 +306,7 @@ export const Payments: React.FC = () => {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 10 }}
-                  className="p-6 space-y-4"
+                  className="p-4 space-y-3"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -314,25 +314,25 @@ export const Payments: React.FC = () => {
                         {p.userName.charAt(0)}
                       </div>
                       <div>
-                        <p className="font-bold text-slate-900">{p.userName}</p>
-                        <p className="text-xs text-slate-400 font-medium">
+                        <p className="font-bold text-slate-900 text-sm">{p.userName}</p>
+                        <p className="text-[10px] text-slate-400 font-medium">
                           {format(new Date(p.month + '-02'), 'MMMM yyyy', { locale: es })}
                         </p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-lg font-black text-slate-900">${p.amount}</p>
+                      <p className="text-base font-black text-slate-900">${p.amount}</p>
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between gap-2">
                     <span className={cn(
-                      "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider border flex items-center w-fit gap-1.5",
+                      "px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider border flex items-center w-fit gap-1",
                       p.status === 'COMPLETED' 
                         ? "bg-emerald-50 text-emerald-600 border-emerald-100" 
                         : "bg-amber-50 text-amber-600 border-amber-100"
                     )}>
-                      {p.status === 'COMPLETED' ? <CheckCircle2 size={12} /> : <Clock size={12} />}
+                      {p.status === 'COMPLETED' ? <CheckCircle2 size={10} /> : <Clock size={10} />}
                       {p.status === 'COMPLETED' ? 'Completado' : 'Pendiente'}
                     </span>
 
@@ -340,16 +340,16 @@ export const Payments: React.FC = () => {
                       {p.evidenceUrl ? (
                         <button 
                           onClick={() => setViewingEvidence(p.evidenceUrl!)}
-                          className="flex items-center gap-2 px-3 py-2 text-emerald-600 bg-emerald-50 rounded-xl text-xs font-bold transition-all border border-emerald-100"
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 text-emerald-600 bg-emerald-50 rounded-lg text-[10px] font-bold transition-all border border-emerald-100"
                         >
-                          <Receipt size={14} />
-                          Comprobante
+                          <Receipt size={12} />
+                          Ver
                         </button>
                       ) : (
                         (user?.uid === p.userId || user?.role === 'ADMIN') && (
-                          <label className="cursor-pointer flex items-center gap-2 px-3 py-2 text-slate-600 bg-slate-50 rounded-xl text-xs font-bold transition-all border border-slate-200">
-                            <Camera size={14} />
-                            Subir Foto
+                          <label className="cursor-pointer flex items-center gap-1.5 px-2.5 py-1.5 text-slate-600 bg-slate-50 rounded-lg text-[10px] font-bold transition-all border border-slate-200">
+                            <Camera size={12} />
+                            Subir
                             <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, p.id)} className="hidden" />
                           </label>
                         )
@@ -357,7 +357,7 @@ export const Payments: React.FC = () => {
                       {user?.role === 'ADMIN' && p.status === 'PENDING' && (
                         <button 
                           onClick={() => setConfirmApprove({ isOpen: true, paymentId: p.id })}
-                          className="px-4 py-2 bg-emerald-500 text-white text-xs font-bold rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-100"
+                          className="px-3 py-1.5 bg-emerald-500 text-white text-[10px] font-bold rounded-lg hover:bg-emerald-600 transition-all shadow-md active:scale-95"
                         >
                           Aprobar
                         </button>

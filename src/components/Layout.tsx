@@ -84,7 +84,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, role, activeTab, onTab
           </div>
         </header>
 
-        <div className="p-6 md:p-10 max-w-7xl w-full mx-auto flex-1">
+        <div className="p-4 md:p-10 max-w-7xl w-full mx-auto flex-1">
           {children}
         </div>
       </main>

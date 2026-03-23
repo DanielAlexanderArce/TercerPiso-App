@@ -71,10 +71,10 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() && 
-        ((request.auth.token.email.lower() == "alexanderarcedaniel@gmail.com") ||
+        (('email' in request.auth.token && request.auth.token.email.lower() == "alexanderarcedaniel@gmail.com") ||
          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN') ||
-         (exists(/databases/$(database)/documents/users/$(request.auth.token.email.lower())) && 
+         ('email' in request.auth.token && exists(/databases/$(database)/documents/users/$(request.auth.token.email.lower())) && 
           get(/databases/$(database)/documents/users/$(request.auth.token.email.lower())).data.role == 'ADMIN'));
     }
 
@@ -134,8 +134,9 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if isAuthenticated() && (isAdmin() || isOwner(userId) || isDocOwner() || (resource.data.email.lower() == request.auth.token.email.lower()));
-      allow list: if isAuthenticated() && (isAdmin() || (request.query.limit <= 1 && (('email' in request.query.filters && request.query.filters.email.lower() == request.auth.token.email.lower()) || 'username' in request.query.filters)));
-      allow create: if (isAdmin() || (isAuthenticated() && request.auth.token.email.lower() == userId.lower() && request.resource.data.role == 'INQUILINO' && request.resource.data.email.lower() == request.auth.token.email.lower())) && isValidUser(request.resource.data);
+      allow list: if (request.query.limit <= 1) || 
+                   (isAuthenticated() && (isAdmin() || (request.query.limit <= 100)));
+      allow create: if (isAdmin() || (isAuthenticated() && request.resource.data.uid == request.auth.uid && request.resource.data.role == 'INQUILINO')) && isValidUser(request.resource.data);
       allow update: if isAuthenticated() && (isAdmin() || ((isOwner(userId) || isDocOwner()) && isValidUser(request.resource.data)));
       allow delete: if isAdmin();
     }
