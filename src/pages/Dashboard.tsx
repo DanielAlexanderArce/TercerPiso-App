@@ -45,21 +45,21 @@ export const Dashboard: React.FC = () => {
         className="max-w-7xl mx-auto"
       >
         {/* Welcome Header */}
-        <header className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <header className="mb-8 md:mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2 mb-2 md:mb-3">
               <span className="px-3 py-1 bg-emerald-500/10 text-emerald-600 text-[10px] font-black uppercase tracking-widest rounded-full border border-emerald-100">
                 Sistema Activo
               </span>
               <span className="text-slate-300">•</span>
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                 {format(new Date(), "MMMM yyyy", { locale: es })}
               </span>
             </div>
-            <h1 className="text-3xl md:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight">
+            <h1 className="text-2xl md:text-5xl font-extrabold text-slate-900 tracking-tight leading-tight">
               ¡Hola, <span className="text-emerald-600">{user.name.split(' ')[0]}</span>!
             </h1>
-            <p className="text-slate-500 mt-2 text-lg font-medium">
+            <p className="text-slate-500 mt-1 md:mt-2 text-base md:text-lg font-medium">
               Bienvenido de nuevo a la gestión del <span className="text-slate-900 font-bold">Tercer Piso</span>.
             </p>
           </div>
@@ -68,7 +68,7 @@ export const Dashboard: React.FC = () => {
             <div className="flex items-center gap-3">
               <button 
                 onClick={() => navigate('/users')}
-                className="px-6 py-3.5 bg-slate-900 text-white rounded-2xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 active:scale-95 flex items-center gap-2"
+                className="w-full md:w-auto px-6 py-3.5 bg-slate-900 text-white rounded-2xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 active:scale-95 flex items-center justify-center gap-2"
               >
                 <Users size={18} />
                 Gestionar Inquilinos
@@ -81,16 +81,16 @@ export const Dashboard: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
           
           {/* Main Status Card */}
-          <div className="md:col-span-8 bg-slate-900 text-white p-6 md:p-12 rounded-[2rem] md:rounded-[3rem] shadow-2xl relative overflow-hidden group min-h-[350px] md:min-h-[400px] flex flex-col justify-between">
+          <div className="md:col-span-8 bg-slate-900 text-white p-6 md:p-12 rounded-[2rem] md:rounded-[3rem] shadow-2xl relative overflow-hidden group min-h-[300px] md:min-h-[400px] flex flex-col justify-between">
             <div className="relative z-10">
-              <div className="flex items-center justify-between mb-8 md:mb-10">
+              <div className="flex items-center justify-between mb-6 md:mb-10">
                 <div className="flex items-center gap-3 md:gap-4">
                   <div className="w-10 h-10 md:w-12 md:h-12 bg-white/10 rounded-xl md:rounded-2xl flex items-center justify-center border border-white/10">
                     <Shield size={20} className="text-emerald-400" />
                   </div>
                   <div>
-                    <h3 className="text-xl md:text-2xl font-extrabold tracking-tight">Tu Estado Actual</h3>
-                    <p className="text-slate-400 text-xs md:text-sm font-medium">Resumen de responsabilidades</p>
+                    <h3 className="text-lg md:text-2xl font-extrabold tracking-tight">Tu Estado Actual</h3>
+                    <p className="text-slate-400 text-[10px] md:text-sm font-medium">Resumen de responsabilidades</p>
                   </div>
                 </div>
                 <div className="hidden sm:block">
@@ -100,17 +100,17 @@ export const Dashboard: React.FC = () => {
 
               {myAssignment ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
-                  <div className="bg-white/5 p-6 md:p-8 rounded-2xl md:rounded-[2rem] border border-white/10 hover:bg-white/10 transition-colors">
-                    <p className="text-emerald-400 text-[10px] font-black uppercase tracking-[0.2em] mb-2 md:mb-3">Rol Semanal</p>
-                    <p className="text-xl md:text-3xl font-bold tracking-tight mb-1 md:mb-2">{myAssignment.role}</p>
+                  <div className="bg-white/5 p-5 md:p-8 rounded-2xl md:rounded-[2rem] border border-white/10 hover:bg-white/10 transition-colors">
+                    <p className="text-emerald-400 text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] mb-1 md:mb-3">Rol Semanal</p>
+                    <p className="text-lg md:text-3xl font-bold tracking-tight mb-1 md:mb-2">{myAssignment.role}</p>
                     <div className="flex items-center gap-2 text-slate-400 text-[10px] md:text-sm">
                       <CheckCircle2 size={12} />
                       <span>Pendiente de revisión</span>
                     </div>
                   </div>
-                  <div className="bg-white/5 p-6 md:p-8 rounded-2xl md:rounded-[2rem] border border-white/10 hover:bg-white/10 transition-colors">
-                    <p className="text-emerald-400 text-[10px] font-black uppercase tracking-[0.2em] mb-2 md:mb-3">Área Asignada</p>
-                    <p className="text-xl md:text-3xl font-bold tracking-tight mb-1 md:mb-2">{myAssignment.area}</p>
+                  <div className="bg-white/5 p-5 md:p-8 rounded-2xl md:rounded-[2rem] border border-white/10 hover:bg-white/10 transition-colors">
+                    <p className="text-emerald-400 text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] mb-1 md:mb-3">Área Asignada</p>
+                    <p className="text-lg md:text-3xl font-bold tracking-tight mb-1 md:mb-2">{myAssignment.area}</p>
                     <div className="flex items-center gap-2 text-slate-400 text-[10px] md:text-sm">
                       <AlertTriangle size={12} />
                       <span>Mantener orden</span>
@@ -118,15 +118,15 @@ export const Dashboard: React.FC = () => {
                   </div>
                 </div>
               ) : (
-                <div className="py-8 md:py-12 text-center bg-white/5 rounded-2xl md:rounded-[2rem] border border-white/10 border-dashed">
-                  <Bell size={32} className="mx-auto text-white/10 mb-3 md:mb-4" />
-                  <p className="text-slate-400 text-sm md:font-medium">No tienes roles asignados para esta semana.</p>
+                <div className="py-6 md:py-12 text-center bg-white/5 rounded-2xl md:rounded-[2rem] border border-white/10 border-dashed">
+                  <Bell size={24} className="mx-auto text-white/10 mb-2 md:mb-4" />
+                  <p className="text-slate-400 text-xs md:text-sm font-medium px-4">No tienes roles asignados para esta semana.</p>
                 </div>
               )}
             </div>
 
-            <div className="relative z-10 mt-8 md:mt-10 pt-6 md:pt-8 border-t border-white/10 flex items-center justify-between">
-              <p className="text-slate-400 text-xs md:text-sm font-medium max-w-[200px] md:max-w-md">
+            <div className="relative z-10 mt-6 md:mt-10 pt-4 md:pt-8 border-t border-white/10 flex items-center justify-between">
+              <p className="text-slate-400 text-[10px] md:text-sm font-medium max-w-[180px] md:max-w-md">
                 Recuerda que la convivencia armoniosa depende del compromiso de todos.
               </p>
               <button 

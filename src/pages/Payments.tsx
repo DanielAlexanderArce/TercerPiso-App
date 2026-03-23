@@ -182,19 +182,19 @@ export const Payments: React.FC = () => {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
             <input 
               type="text"
-              placeholder="Buscar por nombre de inquilino..."
+              placeholder="Buscar por nombre..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-12 pr-4 py-3.5 bg-white border border-slate-200 rounded-[1.25rem] focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all shadow-sm"
+              className="w-full pl-12 pr-4 py-3.5 bg-white border border-slate-200 rounded-[1.25rem] focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all shadow-sm text-sm"
             />
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 overflow-x-auto pb-2 lg:pb-0 scrollbar-hide">
             {(['ALL', 'PENDING', 'COMPLETED'] as const).map((status) => (
               <button
                 key={status}
                 onClick={() => setFilterStatus(status)}
                 className={cn(
-                  "px-5 py-3.5 rounded-[1.25rem] text-sm font-bold transition-all border shadow-sm",
+                  "px-4 py-3 rounded-xl text-xs font-bold transition-all border shadow-sm whitespace-nowrap",
                   filterStatus === status 
                     ? "bg-slate-900 text-white border-slate-900" 
                     : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
@@ -208,7 +208,8 @@ export const Payments: React.FC = () => {
 
         {/* Payments List */}
         <div className="bg-white rounded-2xl md:rounded-[2.5rem] border border-slate-200/60 shadow-xl shadow-slate-200/40 overflow-hidden">
-          <div className="overflow-x-auto scrollbar-hide">
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto scrollbar-hide">
             <table className="w-full text-left border-collapse min-w-[600px]">
               <thead>
                 <tr className="bg-slate-50/50 border-b border-slate-100">
@@ -293,16 +294,90 @@ export const Payments: React.FC = () => {
                 </AnimatePresence>
               </tbody>
             </table>
-            {filteredPayments.length === 0 && (
-              <div className="py-20 text-center">
-                <div className="w-20 h-20 bg-slate-50 rounded-[2rem] flex items-center justify-center mx-auto mb-6">
-                  <Receipt size={32} className="text-slate-200" />
-                </div>
-                <h3 className="text-lg font-bold text-slate-900">No hay registros de pagos</h3>
-                <p className="text-slate-500 mt-1">Los pagos registrados aparecerán en esta lista.</p>
-              </div>
-            )}
           </div>
+
+          {/* Mobile Card View */}
+          <div className="md:hidden divide-y divide-slate-100">
+            <AnimatePresence mode="popLayout">
+              {filteredPayments.map((p) => (
+                <motion.div
+                  key={p.id}
+                  layout
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  className="p-6 space-y-4"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400 font-bold text-sm border border-slate-200">
+                        {p.userName.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="font-bold text-slate-900">{p.userName}</p>
+                        <p className="text-xs text-slate-400 font-medium">
+                          {format(new Date(p.month + '-02'), 'MMMM yyyy', { locale: es })}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-black text-slate-900">${p.amount}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={cn(
+                      "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider border flex items-center w-fit gap-1.5",
+                      p.status === 'COMPLETED' 
+                        ? "bg-emerald-50 text-emerald-600 border-emerald-100" 
+                        : "bg-amber-50 text-amber-600 border-amber-100"
+                    )}>
+                      {p.status === 'COMPLETED' ? <CheckCircle2 size={12} /> : <Clock size={12} />}
+                      {p.status === 'COMPLETED' ? 'Completado' : 'Pendiente'}
+                    </span>
+
+                    <div className="flex items-center gap-2">
+                      {p.evidenceUrl ? (
+                        <button 
+                          onClick={() => setViewingEvidence(p.evidenceUrl!)}
+                          className="flex items-center gap-2 px-3 py-2 text-emerald-600 bg-emerald-50 rounded-xl text-xs font-bold transition-all border border-emerald-100"
+                        >
+                          <Receipt size={14} />
+                          Comprobante
+                        </button>
+                      ) : (
+                        (user?.uid === p.userId || user?.role === 'ADMIN') && (
+                          <label className="cursor-pointer flex items-center gap-2 px-3 py-2 text-slate-600 bg-slate-50 rounded-xl text-xs font-bold transition-all border border-slate-200">
+                            <Camera size={14} />
+                            Subir Foto
+                            <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, p.id)} className="hidden" />
+                          </label>
+                        )
+                      )}
+                      {user?.role === 'ADMIN' && p.status === 'PENDING' && (
+                        <button 
+                          onClick={() => setConfirmApprove({ isOpen: true, paymentId: p.id })}
+                          className="px-4 py-2 bg-emerald-500 text-white text-xs font-bold rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-100"
+                        >
+                          Aprobar
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+
+          {filteredPayments.length === 0 && (
+            <div className="py-20 text-center">
+              <div className="w-20 h-20 bg-slate-50 rounded-[2rem] flex items-center justify-center mx-auto mb-6">
+                <Receipt size={32} className="text-slate-200" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900">No hay registros de pagos</h3>
+              <p className="text-slate-500 mt-1 px-6">Los pagos registrados aparecerán en esta lista.</p>
+            </div>
+          )}
         </div>
       </div>
 

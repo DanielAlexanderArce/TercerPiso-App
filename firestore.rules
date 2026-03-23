@@ -62,16 +62,16 @@ service cloud.firestore {
     }
 
     function isOwner(userId) {
-      return isAuthenticated() && (request.auth.uid == userId || request.auth.token.email == userId);
+      return isAuthenticated() && (request.auth.uid == userId || request.auth.token.email.lower() == userId.lower());
     }
 
     function isDocOwner() {
-      return isAuthenticated() && (resource.data.uid == request.auth.uid || resource.data.email == request.auth.token.email);
+      return isAuthenticated() && (resource.data.uid == request.auth.uid || resource.data.email.lower() == request.auth.token.email.lower());
     }
 
     function isAdmin() {
       return isAuthenticated() && 
-        ((request.auth.token.email == "alexanderarcedaniel@gmail.com" && request.auth.token.email_verified == true) ||
+        ((request.auth.token.email.lower() == "alexanderarcedaniel@gmail.com") ||
          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN') ||
          (exists(/databases/$(database)/documents/users/$(request.auth.token.email.lower())) && 
@@ -133,9 +133,9 @@ service cloud.firestore {
     // ===============================================================
 
     match /users/{userId} {
-      allow read: if isAuthenticated() && (isAdmin() || isOwner(userId) || isDocOwner() || resource.data.email == request.auth.token.email);
-      allow list: if isAuthenticated() && (isAdmin() || (request.query.limit <= 1 && (request.query.filters.email == request.auth.token.email || request.query.filters.username != null)));
-      allow create: if (isAdmin() || (isAuthenticated() && request.auth.token.email == userId && request.resource.data.role == 'INQUILINO' && request.resource.data.email == request.auth.token.email)) && isValidUser(request.resource.data);
+      allow read: if isAuthenticated() && (isAdmin() || isOwner(userId) || isDocOwner() || (resource.data.email.lower() == request.auth.token.email.lower()));
+      allow list: if isAuthenticated() && (isAdmin() || (request.query.limit <= 1 && (('email' in request.query.filters && request.query.filters.email.lower() == request.auth.token.email.lower()) || 'username' in request.query.filters)));
+      allow create: if (isAdmin() || (isAuthenticated() && request.auth.token.email.lower() == userId.lower() && request.resource.data.role == 'INQUILINO' && request.resource.data.email.lower() == request.auth.token.email.lower())) && isValidUser(request.resource.data);
       allow update: if isAuthenticated() && (isAdmin() || ((isOwner(userId) || isDocOwner()) && isValidUser(request.resource.data)));
       allow delete: if isAdmin();
     }
