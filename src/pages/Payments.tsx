@@ -272,7 +272,7 @@ export const Payments: React.FC = () => {
                               <Receipt size={18} />
                             </button>
                           ) : (
-                            (user?.uid === p.userId || user?.role === 'ADMIN') && (
+                            (user?.uid === p.userId && user?.role !== 'ADMIN') && (
                               <label className="cursor-pointer p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all">
                                 <Camera size={18} />
                                 <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, p.id)} className="hidden" />
@@ -346,7 +346,7 @@ export const Payments: React.FC = () => {
                           Ver
                         </button>
                       ) : (
-                        (user?.uid === p.userId || user?.role === 'ADMIN') && (
+                        (user?.uid === p.userId && user?.role !== 'ADMIN') && (
                           <label className="cursor-pointer flex items-center gap-1.5 px-2.5 py-1.5 text-slate-600 bg-slate-50 rounded-lg text-[10px] font-bold transition-all border border-slate-200">
                             <Camera size={12} />
                             Subir

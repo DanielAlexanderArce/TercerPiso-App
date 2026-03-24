@@ -35,7 +35,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Use onSnapshot directly to handle creation and updates
         unsubUser = onSnapshot(userDocRef, (docSnap) => {
           if (docSnap.exists()) {
-            setUser({ ...docSnap.data(), uid: docSnap.id } as User);
+            setUser({ ...docSnap.data(), uid: docSnap.id, email: email } as User);
           } else {
             setUser(null);
           }

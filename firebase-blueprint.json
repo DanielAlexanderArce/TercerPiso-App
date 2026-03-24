@@ -49,7 +49,7 @@
             "properties": {
               "role": { "type": "string", "enum": ["Limpieza de Baño", "Limpieza de Pasadizo"] },
               "status": { "type": "string", "enum": ["PENDING", "COMPLETED"] },
-              "evidenceUrl": { "type": "string" },
+              "evidenceUrls": { "type": "array", "items": { "type": "string" } },
               "completedAt": { "type": "number" }
             }
           }

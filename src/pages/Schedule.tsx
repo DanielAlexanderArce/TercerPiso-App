@@ -16,7 +16,7 @@ import { ConfirmModal } from '../components/ConfirmModal';
 interface Assignment {
   role: 'Limpieza de Baño' | 'Limpieza de Pasadizo';
   status: 'PENDING' | 'COMPLETED';
-  evidenceUrl?: string;
+  evidenceUrls?: string[];
   completedAt?: number;
 }
 
@@ -32,7 +32,7 @@ interface Schedule {
 }
 
 export const SchedulePage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -45,6 +45,8 @@ export const SchedulePage: React.FC = () => {
     id: null
   });
 
+  if (loading) return null; // Or a loading spinner
+
   useEffect(() => {
     const q = query(collection(db, 'schedules'), orderBy('weekStart', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -53,18 +55,21 @@ export const SchedulePage: React.FC = () => {
       handleFirestoreError(error, OperationType.LIST, 'schedules');
     });
 
-    const qUsers = query(collection(db, 'users'));
-    const unsubscribeUsers = onSnapshot(qUsers, (snapshot) => {
-      setUsers(snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() })));
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'users');
-    });
+    let unsubscribeUsers = () => {};
+    if (user?.role === 'ADMIN') {
+      const qUsers = query(collection(db, 'users'));
+      unsubscribeUsers = onSnapshot(qUsers, (snapshot) => {
+        setUsers(snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() })));
+      }, (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'users');
+      });
+    }
 
     return () => {
       unsubscribe();
       unsubscribeUsers();
     };
-  }, []);
+  }, [user]);
 
   const currentWeekSchedules = useMemo(() => {
     const start = startOfWeek(selectedDate, { weekStartsOn: 1 });
@@ -133,10 +138,14 @@ export const SchedulePage: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (file.size > 1 * 1024 * 1024) {
+      alert('La imagen es demasiado grande. El límite es 1MB.');
+      return;
+    }
+
     setIsUploading({ scheduleId, role });
 
     try {
-      // Simulate upload and get a data URL (limited to 100KB for Firestore safety)
       const reader = new FileReader();
       reader.onloadend = async () => {
         const base64String = reader.result as string;
@@ -146,10 +155,15 @@ export const SchedulePage: React.FC = () => {
 
         const updatedAssignments = schedule.assignments.map(a => {
           if (a.role === role) {
+            const currentUrls = a.evidenceUrls || [];
+            if (currentUrls.length >= 3) {
+              alert('Ya has subido el máximo de 3 fotos para este rol.');
+              return a;
+            }
             return {
               ...a,
-              status: 'COMPLETED' as const,
-              evidenceUrl: base64String,
+              status: 'PENDING' as const, // Changed to PENDING until admin approves
+              evidenceUrls: [...currentUrls, base64String],
               completedAt: Date.now()
             };
           }
@@ -167,7 +181,7 @@ export const SchedulePage: React.FC = () => {
     } catch (error) {
       console.error('Error uploading evidence:', error);
       setIsUploading(null);
-      alert('Error al subir evidencia. Intenta con una imagen más pequeña.');
+      handleFirestoreError(error, OperationType.UPDATE, `schedules/${scheduleId}`);
     }
   };
 
@@ -314,22 +328,26 @@ export const SchedulePage: React.FC = () => {
                             </div>
                           </div>
 
-                          {assign.evidenceUrl ? (
-                            <div className="relative aspect-video rounded-2xl overflow-hidden border border-slate-200 mb-4">
-                              <img 
-                                src={assign.evidenceUrl} 
-                                alt="Evidencia" 
-                                className="w-full h-full object-cover"
-                                referrerPolicy="no-referrer"
-                              />
-                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/item:opacity-100 transition-opacity flex items-center justify-center">
-                                <button 
-                                  onClick={() => window.open(assign.evidenceUrl, '_blank')}
-                                  className="p-2 bg-white rounded-lg text-slate-900 font-bold text-xs"
-                                >
-                                  Ver Ampliado
-                                </button>
-                              </div>
+                          {assign.evidenceUrls && assign.evidenceUrls.length > 0 ? (
+                            <div className="grid grid-cols-1 gap-4 mb-4">
+                              {assign.evidenceUrls.map((url, uIdx) => (
+                                <div key={uIdx} className="relative aspect-video rounded-2xl overflow-hidden border border-slate-200">
+                                  <img 
+                                    src={url} 
+                                    alt={`Evidencia ${uIdx + 1}`} 
+                                    className="w-full h-full object-cover"
+                                    referrerPolicy="no-referrer"
+                                  />
+                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/item:opacity-100 transition-opacity flex items-center justify-center">
+                                    <button 
+                                      onClick={() => window.open(url, '_blank')}
+                                      className="p-2 bg-white rounded-lg text-slate-900 font-bold text-xs"
+                                    >
+                                      Ver Ampliado
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
                             </div>
                           ) : (
                             <div className="aspect-video rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center mb-4 bg-white/50">
@@ -338,7 +356,7 @@ export const SchedulePage: React.FC = () => {
                             </div>
                           )}
 
-                          {(user?.uid === schedule.assignedUserId || user?.email === schedule.assignedUserId) && assign.status === 'PENDING' && (
+                          {user && (user.uid === schedule.assignedUserId || user.email === schedule.assignedUserId) && (
                             <div className="relative">
                               <input 
                                 type="file" 
@@ -358,7 +376,8 @@ export const SchedulePage: React.FC = () => {
                                 ) : (
                                   <>
                                     <Upload size={14} />
-                                    Subir Evidencia
+                                    {assign.evidenceUrls && assign.evidenceUrls.length > 0 ? 'Añadir más evidencia' : 'Subir Evidencia'}
+                                    {assign.evidenceUrls && ` (${assign.evidenceUrls.length}/3)`}
                                   </>
                                 )}
                               </button>

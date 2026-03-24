@@ -3,34 +3,61 @@ import { motion } from 'motion/react';
 import { Layout } from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { CreditCard, Users, ArrowRight, Calendar, Bell, Shield, CheckCircle2, Clock, AlertTriangle, Sparkles } from 'lucide-react';
-import { collection, query, where, getDocs, limit, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
+import { CreditCard, Users, ArrowRight, Calendar, Bell, Shield, CheckCircle2, Clock, AlertTriangle, FileText } from 'lucide-react';
+import { collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
-import { format, startOfWeek, endOfWeek, addDays } from 'date-fns';
+import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
+import { ReportsModal } from '../components/ReportsModal';
 import { cn } from '../utils/cn';
+import { Payment, User } from '../types';
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const [currentSchedule, setCurrentSchedule] = useState<any>(null);
+  const [pendingPayments, setPendingPayments] = useState(0);
+  const [pendingTasks, setPendingTasks] = useState(0);
+  const [isReportsModalOpen, setIsReportsModalOpen] = useState(false);
+  const [allPayments, setAllPayments] = useState<Payment[]>([]);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchCurrentSchedule = async () => {
+    const fetchData = async () => {
       const today = format(new Date(), 'yyyy-MM-dd');
-      const q = query(
+      
+      // Fetch Schedule
+      const qSchedules = query(
         collection(db, 'schedules'),
         where('weekStart', '<=', today),
         orderBy('weekStart', 'desc'),
         limit(1)
       );
-      const snapshot = await getDocs(q);
-      if (!snapshot.empty) {
-        setCurrentSchedule(snapshot.docs[0].data());
+      const snapshotSchedules = await getDocs(qSchedules);
+      if (!snapshotSchedules.empty) {
+        const schedule = snapshotSchedules.docs[0].data();
+        setCurrentSchedule(schedule);
+        
+        // Calculate pending tasks
+        const pending = schedule.assignments?.filter((a: any) => a.status === 'PENDING').length || 0;
+        setPendingTasks(pending);
       }
+
+      // Fetch Payments
+      const qPayments = query(collection(db, 'payments'));
+      const snapshotPayments = await getDocs(qPayments);
+      const paymentsData = snapshotPayments.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
+      setAllPayments(paymentsData);
+      setPendingPayments(paymentsData.filter(p => p.status === 'PENDING').length);
+
+      // Fetch Users
+      const qUsers = query(collection(db, 'users'));
+      const snapshotUsers = await getDocs(qUsers);
+      const usersData = snapshotUsers.docs.map(doc => ({ ...doc.data(), uid: doc.id } as User));
+      setAllUsers(usersData);
     };
-    fetchCurrentSchedule();
+    fetchData();
   }, []);
 
   if (!user) return null;
@@ -66,6 +93,13 @@ export const Dashboard: React.FC = () => {
           
           {user.role === 'ADMIN' && (
             <div className="flex items-center gap-3">
+              <button 
+                onClick={() => setIsReportsModalOpen(true)}
+                className="w-full md:w-auto px-6 py-3.5 bg-emerald-50 text-emerald-700 rounded-2xl font-bold text-sm hover:bg-emerald-100 transition-all shadow-lg shadow-emerald-100 active:scale-95 flex items-center justify-center gap-2"
+              >
+                <FileText size={18} />
+                Reportes
+              </button>
               <button 
                 onClick={() => navigate('/users')}
                 className="w-full md:w-auto px-6 py-3.5 bg-slate-900 text-white rounded-2xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 active:scale-95 flex items-center justify-center gap-2"
@@ -105,12 +139,12 @@ export const Dashboard: React.FC = () => {
                     <p className="text-lg md:text-3xl font-bold tracking-tight mb-1 md:mb-2">{myAssignment.role}</p>
                     <div className="flex items-center gap-2 text-slate-400 text-[10px] md:text-sm">
                       <CheckCircle2 size={12} />
-                      <span>Pendiente de revisión</span>
+                      <span>{myAssignment.status === 'COMPLETED' ? 'Completado' : 'Pendiente de revisión'}</span>
                     </div>
                   </div>
                   <div className="bg-white/5 p-5 md:p-8 rounded-2xl md:rounded-[2rem] border border-white/10 hover:bg-white/10 transition-colors">
                     <p className="text-emerald-400 text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] mb-1 md:mb-3">Área Asignada</p>
-                    <p className="text-lg md:text-3xl font-bold tracking-tight mb-1 md:mb-2">{myAssignment.area}</p>
+                    <p className="text-lg md:text-3xl font-bold tracking-tight mb-1 md:mb-2">{myAssignment.area || 'Área Común'}</p>
                     <div className="flex items-center gap-2 text-slate-400 text-[10px] md:text-sm">
                       <AlertTriangle size={12} />
                       <span>Mantener orden</span>
@@ -153,7 +187,9 @@ export const Dashboard: React.FC = () => {
               </div>
               <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1 md:mb-2">Pagos Internet</h3>
               <div className="flex items-center justify-between">
-                <p className="text-xl md:text-2xl font-extrabold text-slate-900 tracking-tight">Estado Mensual</p>
+                <p className="text-xl md:text-2xl font-extrabold text-slate-900 tracking-tight">
+                  {pendingPayments > 0 ? `${pendingPayments} Pendientes` : 'Todo al día'}
+                </p>
                 <ArrowRight className="text-slate-300 group-hover:text-slate-900 group-hover:translate-x-1 transition-all" size={18} />
               </div>
             </button>
@@ -162,19 +198,13 @@ export const Dashboard: React.FC = () => {
               <div>
                 <h3 className="text-lg md:text-xl font-extrabold text-slate-900 tracking-tight mb-4 md:mb-6 flex items-center gap-2">
                   <Bell size={18} className="text-emerald-500" />
-                  Reglas de Oro
+                  Resumen Semanal
                 </h3>
                 <div className="space-y-4 md:space-y-5">
-                  {[
-                    { id: '01', text: 'Limpieza profunda de áreas.' },
-                    { id: '02', text: 'Respetar horarios de descanso.' },
-                    { id: '03', text: 'Pago puntual de servicios.' }
-                  ].map((rule) => (
-                    <div key={rule.id} className="flex items-start gap-3 md:gap-4 group">
-                      <span className="text-slate-200 font-black text-2xl md:text-3xl leading-none group-hover:text-emerald-500 transition-colors">{rule.id}</span>
-                      <p className="text-slate-600 text-xs md:text-sm font-bold pt-1 leading-snug">{rule.text}</p>
-                    </div>
-                  ))}
+                  <div className="flex items-center gap-4">
+                    <div className="text-emerald-500 font-black text-3xl">{pendingTasks}</div>
+                    <p className="text-slate-600 text-sm font-bold">Tareas de limpieza pendientes esta semana.</p>
+                  </div>
                 </div>
               </div>
               <div className="mt-6 md:mt-8 pt-4 md:pt-6 border-t border-slate-50">
@@ -184,6 +214,12 @@ export const Dashboard: React.FC = () => {
           </div>
 
         </div>
+        <ReportsModal 
+          isOpen={isReportsModalOpen} 
+          onClose={() => setIsReportsModalOpen(false)} 
+          payments={allPayments} 
+          users={allUsers} 
+        />
       </motion.div>
     </Layout>
   );
