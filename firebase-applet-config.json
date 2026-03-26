@@ -4,7 +4,7 @@
   "apiKey": "AIzaSyCRrIo_5ty7FgKYuuXEwDqj8dgx4LSybrs",
   "authDomain": "edificio-admmin.firebaseapp.com",
   "firestoreDatabaseId": "ai-studio-a1c64619-fa09-4a38-bb8f-b7b2f1301ffa",
-  "storageBucket": "edificio-admmin-storage",
+  "storageBucket": "edificio-admmin.firebasestorage.app",
   "messagingSenderId": "424702824646",
   "measurementId": ""
 }
