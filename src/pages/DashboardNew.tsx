@@ -3,8 +3,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Layout } from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { CreditCard, Users, ArrowRight, Calendar, Bell, Shield, CheckCircle2, Clock, AlertTriangle, FileText, Sparkles, Home } from 'lucide-react';
-import { collection, query, where, getDocs, limit, orderBy, onSnapshot } from 'firebase/firestore';
+import { CreditCard, Users, ArrowRight, Calendar, Bell, Shield, CheckCircle2, Clock, AlertTriangle, FileText, Sparkles, Home, Upload, Loader2, X } from 'lucide-react';
+import { collection, query, where, getDocs, limit, orderBy, onSnapshot, updateDoc, doc } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db } from '../firebase';
 import { format, isSameWeek, parseISO, startOfWeek } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -17,6 +18,7 @@ export const Dashboard: React.FC = () => {
   const [currentSchedule, setCurrentSchedule] = useState<any>(null);
   const [pendingPayments, setPendingPayments] = useState<Payment[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
+  const [isUploading, setIsUploading] = useState<{ scheduleId: string, role: string } | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -78,9 +80,125 @@ export const Dashboard: React.FC = () => {
 
   if (!user) return null;
 
-  const isMySchedule = currentSchedule?.assignedUserId === user.uid;
+  const isMySchedule = currentSchedule && (
+    currentSchedule.assignedUserId === user.uid || 
+    currentSchedule.assignedUserId === user.email ||
+    (user.name && currentSchedule.assignedUserName && user.name.trim().toLowerCase() === currentSchedule.assignedUserName.trim().toLowerCase())
+  );
   const myAssignments = isMySchedule ? currentSchedule?.assignments || [] : [];
   const pendingTasksCount = myAssignments.filter((a: any) => a.status === 'PENDING').length;
+
+  const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
+
+  const handleFileUpload = async (scheduleId: string, role: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check if we already have 3 images
+    const assignment = currentSchedule?.assignments.find((a: any) => a.role === role);
+    if (assignment && assignment.evidenceUrls && assignment.evidenceUrls.length >= 3) {
+      alert('Ya has subido el máximo de 3 fotos para este rol.');
+      return;
+    }
+
+    const uploadKey = `${scheduleId}-${role}`;
+    setIsUploading({ scheduleId, role });
+    setUploadProgress(prev => ({ ...prev, [uploadKey]: 0 }));
+
+    try {
+      // Compress image before upload
+      const compressedBlob = await new Promise<Blob>((resolve, reject) => {
+        const img = new Image();
+        img.src = URL.createObjectURL(file);
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 800; // Reduced from 1000
+          const MAX_HEIGHT = 800; // Reduced from 1000
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          URL.revokeObjectURL(img.src); // Clean up
+          canvas.toBlob((blob) => {
+            if (blob) resolve(blob);
+            else reject(new Error('Error al comprimir imagen'));
+          }, 'image/jpeg', 0.5); // Reduced quality from 0.6 to 0.5
+        };
+        img.onerror = reject;
+      });
+
+      const storage = getStorage();
+      const storageRef = ref(storage, `evidence/${scheduleId}/${role}/${Date.now()}_compressed.jpg`);
+      
+      const { uploadBytesResumable, getDownloadURL } = await import('firebase/storage');
+      const uploadTask = uploadBytesResumable(storageRef, compressedBlob);
+
+      uploadTask.on('state_changed', 
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          setUploadProgress(prev => ({ ...prev, [uploadKey]: Math.round(progress) }));
+        }, 
+        (error) => {
+          console.error('Upload error:', error);
+          setIsUploading(null);
+          setUploadProgress(prev => {
+            const next = { ...prev };
+            delete next[uploadKey];
+            return next;
+          });
+        }, 
+        async () => {
+          const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
+          
+          const updatedAssignments = currentSchedule.assignments.map((a: any) => {
+            if (a.role === role) {
+              const currentUrls = a.evidenceUrls || [];
+              return {
+                ...a,
+                evidenceUrls: [...currentUrls, downloadUrl]
+              };
+            }
+            return a;
+          });
+
+          await updateDoc(doc(db, 'schedules', scheduleId), {
+            assignments: updatedAssignments,
+            updatedAt: Date.now()
+          });
+          
+          setIsUploading(null);
+          setUploadProgress(prev => {
+            const next = { ...prev };
+            delete next[uploadKey];
+            return next;
+          });
+        }
+      );
+    } catch (error) {
+      console.error('Error uploading evidence:', error);
+      setIsUploading(null);
+      setUploadProgress(prev => {
+        const next = { ...prev };
+        delete next[uploadKey];
+        return next;
+      });
+      handleFirestoreError(error, OperationType.UPDATE, `schedules/${scheduleId}`);
+    }
+  };
 
   return (
     <Layout role={user.role} activeTab="dashboard">
@@ -139,32 +257,106 @@ export const Dashboard: React.FC = () => {
               </div>
 
               {currentSchedule ? (
-                isMySchedule ? (
+                (isMySchedule || user.role === 'ADMIN') ? (
                   <div className="space-y-4">
                     <div className="p-4 bg-zinc-900 text-white rounded-2xl flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-1">Tu Responsabilidad</p>
-                        <p className="font-semibold">Eres el encargado de la limpieza esta semana.</p>
+                        <p className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-1">
+                          {isMySchedule ? 'Tu Responsabilidad' : `Responsabilidad de ${currentSchedule.assignedUserName}`}
+                        </p>
+                        <p className="font-semibold">
+                          {isMySchedule ? 'Eres el encargado de la limpieza esta semana.' : 'Encargado de la limpieza esta semana.'}
+                        </p>
                       </div>
                       <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center">
                         <Sparkles className="text-amber-400" size={24} />
                       </div>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {myAssignments.map((assignment: any, idx: number) => (
+                      {(isMySchedule ? myAssignments : currentSchedule.assignments).map((assignment: any, idx: number) => (
                         <div key={idx} className="p-5 bg-zinc-50 rounded-2xl border border-zinc-100 flex flex-col justify-between">
                           <div className="flex items-start justify-between mb-4">
-                            <p className="font-bold text-zinc-900">{assignment.role}</p>
+                            <div>
+                              <p className="font-bold text-zinc-900">{assignment.role}</p>
+                              {assignment.evidenceUrls && assignment.evidenceUrls.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5 mt-2">
+                                  {assignment.evidenceUrls.map((url: string, i: number) => (
+                                    <div key={i} className="relative group/thumb">
+                                      <img 
+                                        src={url} 
+                                        alt="Evidencia" 
+                                        className="w-10 h-10 rounded-lg object-cover border border-zinc-200 shadow-sm" 
+                                        referrerPolicy="no-referrer"
+                                      />
+                                      {(assignment.status !== 'COMPLETED' || user.role === 'ADMIN') && (
+                                        <button 
+                                          onClick={async (e) => {
+                                            e.stopPropagation();
+                                            const updatedAssignments = currentSchedule.assignments.map((a: any) => {
+                                              if (a.role === assignment.role) {
+                                                return {
+                                                  ...a,
+                                                  evidenceUrls: a.evidenceUrls.filter((_: any, idx: number) => idx !== i)
+                                                };
+                                              }
+                                              return a;
+                                            });
+                                            await updateDoc(doc(db, 'schedules', currentSchedule.id), { assignments: updatedAssignments });
+                                          }}
+                                          className="absolute -top-1 -right-1 p-0.5 bg-red-500 text-white rounded-full opacity-0 group-hover/thumb:opacity-100 transition-opacity shadow-sm z-20"
+                                        >
+                                          <X size={8} />
+                                        </button>
+                                      )}
+                                    </div>
+                                  ))}
+                                  {assignment.evidenceUrls.length < 3 && (
+                                    <div className="w-10 h-10 rounded-lg border border-dashed border-zinc-300 flex flex-col items-center justify-center text-zinc-400 text-[8px] font-bold bg-white">
+                                      <span>{assignment.evidenceUrls.length}/3</span>
+                                      <span className="text-[6px] opacity-50 uppercase">Fotos</span>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                             <div className={cn("p-1.5 rounded-lg", assignment.status === 'COMPLETED' ? "bg-emerald-100 text-emerald-600" : "bg-zinc-200 text-zinc-500")}>
                               {assignment.status === 'COMPLETED' ? <CheckCircle2 size={16} /> : <Clock size={16} />}
                             </div>
                           </div>
-                          <span className={cn(
-                            "text-xs font-bold uppercase tracking-wider",
-                            assignment.status === 'COMPLETED' ? "text-emerald-600" : "text-zinc-500"
-                          )}>
-                            {assignment.status === 'COMPLETED' ? 'Completado' : 'Pendiente'}
-                          </span>
+                          <div className="flex items-center justify-between">
+                            <span className={cn(
+                              "text-xs font-bold uppercase tracking-wider",
+                              assignment.status === 'COMPLETED' ? "text-emerald-600" : "text-zinc-500"
+                            )}>
+                              {assignment.status === 'COMPLETED' ? 'Completado' : 'Pendiente'}
+                            </span>
+                            {(assignment.status !== 'COMPLETED' || user.role === 'ADMIN') && (
+                              <div className="relative">
+                                <input 
+                                  type="file" 
+                                  accept="image/*" 
+                                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
+                                  onChange={(e) => handleFileUpload(currentSchedule.id, assignment.role, e)} 
+                                  disabled={isUploading?.scheduleId === currentSchedule.id && isUploading?.role === assignment.role} 
+                                />
+                                <button className="flex items-center gap-2 px-3 py-1.5 bg-zinc-900 text-white rounded-xl hover:bg-zinc-800 transition-all shadow-md active:scale-95">
+                                  {isUploading?.scheduleId === currentSchedule.id && isUploading?.role === assignment.role ? (
+                                    <>
+                                      <Loader2 className="animate-spin" size={14} />
+                                      <span className="text-[10px] font-bold">
+                                        {uploadProgress[`${currentSchedule.id}-${assignment.role}`] || 0}%
+                                      </span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Upload size={14} />
+                                      <span className="text-[10px] font-bold">Subir Evidencia</span>
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>

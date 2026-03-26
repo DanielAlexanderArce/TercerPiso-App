@@ -90,6 +90,8 @@ export const SchedulePage: React.FC = () => {
     });
   }, [schedules, selectedDate]);
 
+  const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
+
   const notifyUser = async (schedule: any, title: string, message: string, type: 'INFO' | 'SUCCESS' | 'ERROR' = 'INFO') => {
     try {
       await addDoc(collection(db, 'notifications'), {
@@ -156,46 +158,111 @@ export const SchedulePage: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 1 * 1024 * 1024) {
-      alert('La imagen es demasiado grande. El límite es 1MB.');
+    // Check if we already have 3 images
+    const schedule = schedules.find(s => s.id === scheduleId);
+    const assignment = schedule?.assignments.find(a => a.role === role);
+    if (assignment && assignment.evidenceUrls && assignment.evidenceUrls.length >= 3) {
+      alert('Ya has subido el máximo de 3 fotos para este rol.');
       return;
     }
 
+    const uploadKey = `${scheduleId}-${role}`;
     setIsUploading({ scheduleId, role });
+    setUploadProgress(prev => ({ ...prev, [uploadKey]: 0 }));
 
     try {
-      const storage = getStorage();
-      const storageRef = ref(storage, `evidence/${scheduleId}/${role}/${Date.now()}_${file.name}`);
-      await uploadBytes(storageRef, file);
-      const downloadUrl = await getDownloadURL(storageRef);
-      
-      const schedule = schedules.find(s => s.id === scheduleId);
-      if (!schedule) return;
+      // Compress image before upload
+      const compressedBlob = await new Promise<Blob>((resolve, reject) => {
+        const img = new Image();
+        img.src = URL.createObjectURL(file);
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 800;
+          const MAX_HEIGHT = 800;
+          let width = img.width;
+          let height = img.height;
 
-      const updatedAssignments = schedule.assignments.map(a => {
-        if (a.role === role) {
-          const currentUrls = a.evidenceUrls || [];
-          if (currentUrls.length >= 3) {
-            alert('Ya has subido el máximo de 3 fotos para este rol.');
-            return a;
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
           }
-          return {
-            ...a,
-            evidenceUrls: [...currentUrls, downloadUrl]
-          };
-        }
-        return a;
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          URL.revokeObjectURL(img.src);
+          canvas.toBlob((blob) => {
+            if (blob) resolve(blob);
+            else reject(new Error('Error al comprimir imagen'));
+          }, 'image/jpeg', 0.5);
+        };
+        img.onerror = reject;
       });
 
-      await updateDoc(doc(db, 'schedules', scheduleId), {
-        assignments: updatedAssignments,
-        updatedAt: Date.now()
-      });
+      const storage = getStorage();
+      const storageRef = ref(storage, `evidence/${scheduleId}/${role}/${Date.now()}_compressed.jpg`);
       
-      setIsUploading(null);
+      const { uploadBytesResumable, getDownloadURL } = await import('firebase/storage');
+      const uploadTask = uploadBytesResumable(storageRef, compressedBlob);
+
+      uploadTask.on('state_changed', 
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          setUploadProgress(prev => ({ ...prev, [uploadKey]: Math.round(progress) }));
+        }, 
+        (error) => {
+          console.error('Upload error:', error);
+          setIsUploading(null);
+          setUploadProgress(prev => {
+            const next = { ...prev };
+            delete next[uploadKey];
+            return next;
+          });
+        }, 
+        async () => {
+          const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
+          
+          if (!schedule) return;
+
+          const updatedAssignments = schedule.assignments.map(a => {
+            if (a.role === role) {
+              const currentUrls = a.evidenceUrls || [];
+              return {
+                ...a,
+                evidenceUrls: [...currentUrls, downloadUrl]
+              };
+            }
+            return a;
+          });
+
+          await updateDoc(doc(db, 'schedules', scheduleId), {
+            assignments: updatedAssignments,
+            updatedAt: Date.now()
+          });
+          
+          setIsUploading(null);
+          setUploadProgress(prev => {
+            const next = { ...prev };
+            delete next[uploadKey];
+            return next;
+          });
+        }
+      );
     } catch (error) {
       console.error('Error uploading evidence:', error);
       setIsUploading(null);
+      setUploadProgress(prev => {
+        const next = { ...prev };
+        delete next[uploadKey];
+        return next;
+      });
       handleFirestoreError(error, OperationType.UPDATE, `schedules/${scheduleId}`);
     }
   };
@@ -350,7 +417,12 @@ export const SchedulePage: React.FC = () => {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {schedule.assignments.map((assign, idx) => {
-                        const isAssignedUser = user && (user.uid === schedule.assignedUserId || user.email === schedule.assignedUserId);
+                        const isAssignedUser = user && (
+                          user.uid === schedule.assignedUserId || 
+                          user.email === schedule.assignedUserId || 
+                          (user.name && schedule.assignedUserName && user.name.trim().toLowerCase() === schedule.assignedUserName.trim().toLowerCase())
+                        );
+                        const canUpload = isAssignedUser || user?.role === 'ADMIN';
                         const hasEvidence = assign.evidenceUrls && assign.evidenceUrls.length > 0;
                         const isUploadingThis = isUploading?.scheduleId === schedule.id && isUploading?.role === assign.role;
 
@@ -375,23 +447,91 @@ export const SchedulePage: React.FC = () => {
                               )}
                             </div>
                             
-                            <div className="flex-1">
+                            <div className="flex-1 relative">
                               {hasEvidence ? (
                                 <div className="grid grid-cols-3 gap-2 mb-4">
                                   {assign.evidenceUrls!.map((url, uIdx) => (
-                                    <img key={uIdx} src={url} alt="Evidencia" className="w-full aspect-square object-cover rounded-lg shadow-sm" referrerPolicy="no-referrer" />
+                                    <div key={uIdx} className="relative group/img">
+                                      <img src={url} alt="Evidencia" className="w-full aspect-square object-cover rounded-lg shadow-sm" referrerPolicy="no-referrer" />
+                                      {canUpload && assign.status !== 'COMPLETED' && (
+                                        <button 
+                                          onClick={async (e) => {
+                                            e.stopPropagation();
+                                            const scheduleToUpdate = schedules.find(s => s.id === schedule.id);
+                                            if (!scheduleToUpdate) return;
+                                            const updatedAssignments = scheduleToUpdate.assignments.map(a => {
+                                              if (a.role === assign.role) {
+                                                return {
+                                                  ...a,
+                                                  evidenceUrls: a.evidenceUrls?.filter((_, i) => i !== uIdx)
+                                                };
+                                              }
+                                              return a;
+                                            });
+                                            await updateDoc(doc(db, 'schedules', schedule.id), { assignments: updatedAssignments });
+                                          }}
+                                          className="absolute -top-1 -right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover/img:opacity-100 transition-opacity shadow-sm"
+                                        >
+                                          <X size={10} />
+                                        </button>
+                                      )}
+                                    </div>
                                   ))}
+                                  {canUpload && assign.status !== 'COMPLETED' && assign.evidenceUrls!.length < 3 && (
+                                    <div className="relative aspect-square rounded-lg border-2 border-dashed border-zinc-200 flex items-center justify-center text-zinc-400 hover:border-zinc-300 transition-colors bg-white">
+                                      <input 
+                                        type="file" 
+                                        accept="image/*" 
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" 
+                                        onChange={(e) => handleFileUpload(schedule.id, assign.role, e)} 
+                                        disabled={isUploadingThis} 
+                                      />
+                                      {isUploadingThis ? (
+                                        <div className="flex flex-col items-center">
+                                          <Loader2 className="animate-spin" size={16} />
+                                          <span className="text-[8px] font-bold mt-1">
+                                            {uploadProgress[`${schedule.id}-${assign.role}`] || 0}%
+                                          </span>
+                                        </div>
+                                      ) : <Plus size={16} />}
+                                    </div>
+                                  )}
                                 </div>
                               ) : (
-                                <div className="aspect-video rounded-xl border-2 border-dashed border-zinc-200 flex flex-col items-center justify-center mb-4 text-zinc-400 bg-white">
-                                  <ImageIcon size={20} />
-                                  <p className="text-[10px] font-bold uppercase mt-1">Sin Evidencia</p>
+                                <div className="relative group">
+                                  {canUpload && assign.status !== 'COMPLETED' && (
+                                    <input 
+                                      type="file" 
+                                      accept="image/*" 
+                                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" 
+                                      onChange={(e) => handleFileUpload(schedule.id, assign.role, e)} 
+                                      disabled={isUploadingThis} 
+                                    />
+                                  )}
+                                  <div className="aspect-video rounded-xl border-2 border-dashed border-zinc-200 flex flex-col items-center justify-center mb-4 text-zinc-400 bg-white group-hover:border-zinc-300 transition-colors">
+                                    {isUploadingThis ? (
+                                      <div className="flex flex-col items-center">
+                                        <Loader2 className="animate-spin" size={24} />
+                                        <span className="text-[10px] font-bold mt-2">
+                                          {uploadProgress[`${schedule.id}-${assign.role}`] || 0}%
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <>
+                                        <ImageIcon size={20} />
+                                        <p className="text-[10px] font-bold uppercase mt-1">Sin Evidencia</p>
+                                        {canUpload && assign.status !== 'COMPLETED' && (
+                                          <p className="text-[8px] mt-1 text-zinc-400">Clic para subir foto</p>
+                                        )}
+                                      </>
+                                    )}
+                                  </div>
                                 </div>
                               )}
                             </div>
 
                             {/* Inquilino Actions */}
-                            {isAssignedUser && assign.status !== 'COMPLETED' && (
+                            {canUpload && assign.status !== 'COMPLETED' && (
                               <div className="space-y-2 mt-auto pt-4 border-t border-zinc-200/60">
                                 <div className="relative">
                                   <input 
@@ -401,7 +541,15 @@ export const SchedulePage: React.FC = () => {
                                     onChange={(e) => handleFileUpload(schedule.id, assign.role, e)} 
                                     disabled={isUploadingThis} 
                                   />
-                                  <button type="button" className="w-full py-2.5 bg-white border border-zinc-200 text-zinc-700 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-zinc-50 transition-colors shadow-sm">
+                                  <button 
+                                    type="button" 
+                                    className={cn(
+                                      "w-full py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-sm",
+                                      hasEvidence 
+                                        ? "bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-50" 
+                                        : "bg-zinc-900 text-white hover:bg-zinc-800 shadow-zinc-200"
+                                    )}
+                                  >
                                     {isUploadingThis ? <Loader2 className="animate-spin" size={14} /> : <Upload size={14} />} 
                                     {hasEvidence ? 'Subir más evidencia' : 'Subir Evidencia'}
                                   </button>

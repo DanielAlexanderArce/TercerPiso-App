@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { Payment, User } from '../types';
 import { Layout } from '../components/Layout';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, DollarSign, CheckCircle2, Clock, Filter, AlertCircle, Camera, Image as ImageIcon, X, Eye, Receipt, ArrowUpRight, Search, Calendar as CalendarIcon, XCircle } from 'lucide-react';
+import { Plus, DollarSign, CheckCircle2, Clock, Filter, AlertCircle, Camera, Image as ImageIcon, X, Eye, Receipt, ArrowUpRight, Search, Calendar as CalendarIcon, XCircle, Upload, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
@@ -32,6 +32,7 @@ export const Payments: React.FC = () => {
   const [amount, setAmount] = useState(20); // Default amount
   const [selectedUserId, setSelectedUserId] = useState('');
   const [evidenceBase64, setEvidenceBase64] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState<string | null>(null);
   const [viewingEvidence, setViewingEvidence] = useState<string | null>(null);
 
   useEffect(() => {
@@ -100,10 +101,16 @@ export const Payments: React.FC = () => {
         return;
       }
       const reader = new FileReader();
-      reader.onloadend = () => {
+      reader.onloadend = async () => {
         const base64 = reader.result as string;
         if (paymentId) {
-          updateDoc(doc(db, 'payments', paymentId), { evidenceUrl: base64, updatedAt: Date.now() });
+          setIsUploading(paymentId);
+          try {
+            await updateDoc(doc(db, 'payments', paymentId), { evidenceUrl: base64, updatedAt: Date.now() });
+          } catch (error) {
+            handleFirestoreError(error, OperationType.UPDATE, `payments/${paymentId}`);
+          }
+          setIsUploading(null);
         } else {
           setEvidenceBase64(base64);
         }
@@ -291,6 +298,21 @@ export const Payments: React.FC = () => {
                             >
                               <Receipt size={18} />
                             </button>
+                          )}
+                          {(user?.role === 'INQUILINO' || user?.role === 'ADMIN') && !p.evidenceUrl && p.status === 'PENDING' && (
+                            <div className="relative">
+                              <input 
+                                type="file" 
+                                accept="image/*" 
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
+                                onChange={(e) => handleFileChange(e, p.id)} 
+                                disabled={isUploading === p.id}
+                              />
+                              <button className="flex items-center gap-1.5 px-3 py-1.5 text-white bg-slate-900 rounded-xl text-[10px] font-bold transition-all shadow-sm hover:bg-slate-800">
+                                {isUploading === p.id ? <Loader2 className="animate-spin" size={12} /> : <Upload size={12} />}
+                                Subir Evidencia
+                              </button>
+                            </div>
                           )}
                           {user?.role === 'ADMIN' && p.status === 'PENDING' && (
                             <>
