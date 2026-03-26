@@ -48,5 +48,9 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     path
   };
   console.error('Firestore Error: ', JSON.stringify(errInfo));
+  
+  // Redirect to error page
+  window.location.href = `/error?message=${encodeURIComponent(errInfo.error)}`;
+  
   throw new Error(JSON.stringify(errInfo));
 }

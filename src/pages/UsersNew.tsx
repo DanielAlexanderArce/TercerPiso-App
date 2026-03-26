@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, onSnapshot, updateDoc, doc, deleteDoc, setDoc, where, getDocs } from 'firebase/firestore';
+import { collection, query, onSnapshot, updateDoc, doc, deleteDoc, setDoc, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { User } from '../types';
 import { Layout } from '../components/Layout';
 import { motion, AnimatePresence } from 'motion/react';
-import { Trash2, Shield, User as UserIcon, Mail, Home, Plus, Edit2, Search, Filter, MoreVertical, X, Check, AlertCircle, Trash } from 'lucide-react';
+import { Trash2, Shield, Mail, Home, Plus, Edit2, Search, X, AlertCircle, Trash } from 'lucide-react';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { cn } from '../utils/cn';
@@ -142,19 +142,15 @@ export const Users: React.FC = () => {
       type: 'danger',
       onConfirm: async () => {
         try {
-          // Delete payments
           const paymentsSnap = await getDocs(collection(db, 'payments'));
           for (const d of paymentsSnap.docs) await deleteDoc(doc(db, 'payments', d.id));
 
-          // Delete schedules
           const schedulesSnap = await getDocs(collection(db, 'schedules'));
           for (const d of schedulesSnap.docs) await deleteDoc(doc(db, 'schedules', d.id));
 
-          // Delete notifications
           const notificationsSnap = await getDocs(collection(db, 'notifications'));
           for (const d of notificationsSnap.docs) await deleteDoc(doc(db, 'notifications', d.id));
 
-          // Delete users except current
           const usersSnap = await getDocs(collection(db, 'users'));
           for (const d of usersSnap.docs) {
             if (d.id !== currentUser?.uid && d.id !== currentUser?.email) {
@@ -172,46 +168,45 @@ export const Users: React.FC = () => {
   };
 
   if (currentUser?.role !== 'ADMIN') {
-    return <div className="p-8 text-center">Acceso denegado.</div>;
+    return <div className="p-8 text-center text-zinc-500">Acceso denegado.</div>;
   }
 
   return (
     <Layout role="ADMIN" activeTab="users">
-      <div className="mb-10">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+      <div className="max-w-7xl mx-auto space-y-8">
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Gestión de Inquilinos</h1>
-            <p className="text-slate-500 mt-1 text-sm">Administra los accesos y perfiles de los residentes.</p>
+            <h1 className="text-3xl font-bold text-zinc-900 tracking-tight">Gestión de Inquilinos</h1>
+            <p className="text-zinc-500 font-medium">Administra los accesos y perfiles de los residentes.</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <button
               onClick={() => {
                 setEditingUser(null);
                 setEditForm({ name: '', roomNumber: '', username: '', email: '' });
                 setIsEditModalOpen(true);
               }}
-              className="flex-1 md:flex-none px-6 py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 active:scale-95 flex items-center justify-center gap-2"
+              className="w-full sm:w-auto px-6 py-3 bg-zinc-900 text-white rounded-xl font-semibold hover:bg-zinc-800 transition-colors flex items-center justify-center gap-2"
             >
-              <Plus size={18} />
-              Crear
+              <Plus size={18} /> Crear Inquilino
             </button>
-            <div className="bg-white px-4 py-2 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-2">
+            <div className="bg-white px-4 py-3 rounded-xl border border-zinc-200 shadow-sm flex items-center justify-center gap-2">
               <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-              <span className="text-xs font-bold text-slate-700">{users.length}</span>
+              <span className="text-sm font-bold text-zinc-700">{users.length} Inquilinos</span>
             </div>
           </div>
-        </div>
+        </header>
 
         {/* Filters & Search */}
-        <div className="flex flex-col lg:flex-row gap-4 mb-8">
+        <div className="flex flex-col lg:flex-row gap-4">
           <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={20} />
             <input 
               type="text"
               placeholder="Buscar inquilino..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-12 pr-4 py-3.5 bg-white border border-slate-200 rounded-[1.25rem] focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all shadow-sm text-sm"
+              className="w-full pl-12 pr-4 py-3 bg-white border border-zinc-200 rounded-xl focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition-all shadow-sm text-sm"
             />
           </div>
           <div className="flex gap-2 overflow-x-auto pb-2 lg:pb-0 scrollbar-hide">
@@ -220,10 +215,10 @@ export const Users: React.FC = () => {
                 key={role}
                 onClick={() => setFilterRole(role)}
                 className={cn(
-                  "px-4 py-3 rounded-xl text-xs font-bold transition-all border shadow-sm whitespace-nowrap",
+                  "px-6 py-3 rounded-xl text-xs font-bold transition-all border shadow-sm whitespace-nowrap",
                   filterRole === role 
-                    ? "bg-slate-900 text-white border-slate-900" 
-                    : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                    ? "bg-zinc-900 text-white border-zinc-900" 
+                    : "bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50"
                 )}
               >
                 {role === 'ALL' ? 'Todos' : role}
@@ -233,20 +228,19 @@ export const Users: React.FC = () => {
         </div>
 
         {/* Users Table/Grid */}
-        <div className="bg-white rounded-2xl md:rounded-[2.5rem] border border-slate-200/60 shadow-xl shadow-slate-200/40 overflow-hidden">
-          {/* Desktop Table View */}
-          <div className="hidden md:block overflow-x-auto scrollbar-hide">
+        <div className="bg-white rounded-3xl border border-zinc-200 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto scrollbar-hide">
             <table className="w-full text-left border-collapse min-w-[700px]">
               <thead>
-                <tr className="bg-slate-50/50 border-b border-slate-100">
-                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Inquilino</th>
-                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Contacto</th>
-                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Habitación</th>
-                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Rol</th>
-                  <th className="px-8 py-5 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Acciones</th>
+                <tr className="bg-zinc-50 border-b border-zinc-100">
+                  <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Inquilino</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Contacto</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Habitación</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Rol</th>
+                  <th className="px-6 py-4 text-xs font-semibold text-zinc-500 uppercase tracking-wider text-right">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50">
+              <tbody className="divide-y divide-zinc-100">
                 <AnimatePresence mode="popLayout">
                   {filteredUsers.map((u, i) => (
                     <motion.tr 
@@ -255,67 +249,67 @@ export const Users: React.FC = () => {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
-                      className="hover:bg-slate-50/30 transition-colors group"
+                      className="hover:bg-zinc-50/50 transition-colors group"
                     >
-                      <td className="px-8 py-6">
+                      <td className="px-6 py-4">
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400 font-bold text-lg border border-slate-200 group-hover:bg-emerald-500 group-hover:text-white group-hover:border-emerald-400 transition-all duration-300">
+                          <div className="w-10 h-10 bg-zinc-100 rounded-full flex items-center justify-center text-zinc-500 font-bold text-sm border border-zinc-200 group-hover:bg-zinc-900 group-hover:text-white transition-colors">
                             {u.name.charAt(0)}
                           </div>
                           <div>
-                            <p className="font-bold text-slate-900">{u.name}</p>
-                            <p className="text-xs text-slate-400 font-medium">@{u.username || 'sin_usuario'}</p>
+                            <p className="font-semibold text-zinc-900">{u.name}</p>
+                            <p className="text-xs text-zinc-500">@{u.username || 'sin_usuario'}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-8 py-6">
-                        <div className="flex items-center gap-2 text-slate-500 text-sm">
-                          <Mail size={14} className="text-slate-300" />
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2 text-zinc-600 text-sm">
+                          <Mail size={14} className="text-zinc-400" />
                           {u.email}
                         </div>
                       </td>
-                      <td className="px-8 py-6">
-                        <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold border border-slate-200">
+                      <td className="px-6 py-4">
+                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-zinc-100 text-zinc-700 rounded-lg text-xs font-medium border border-zinc-200">
                           <Home size={12} />
                           {u.roomNumber || 'N/A'}
                         </div>
                       </td>
-                      <td className="px-8 py-6">
+                      <td className="px-6 py-4">
                         <span className={cn(
-                          "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider border",
+                          "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border",
                           u.role === 'ADMIN' 
-                            ? "bg-slate-900 text-white border-slate-900" 
-                            : "bg-emerald-50 text-emerald-600 border-emerald-100"
+                            ? "bg-zinc-900 text-white border-zinc-900" 
+                            : "bg-zinc-100 text-zinc-600 border-zinc-200"
                         )}>
                           {u.role}
                         </span>
                       </td>
-                      <td className="px-8 py-6 text-right">
+                      <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button 
                             onClick={() => openEditModal(u)}
-                            className="p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
+                            className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-all"
                             title="Editar"
                           >
-                            <Edit2 size={18} />
+                            <Edit2 size={16} />
                           </button>
                           <button 
                             onClick={() => toggleRole(u)}
                             className={cn(
-                              "p-2.5 rounded-xl transition-all",
-                              u.role === 'ADMIN' ? "text-amber-600 bg-amber-50" : "text-slate-400 hover:text-slate-900 hover:bg-slate-100"
+                              "p-2 rounded-lg transition-all",
+                              u.role === 'ADMIN' ? "text-amber-600 bg-amber-50" : "text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100"
                             )}
                             title="Cambiar Rol"
                           >
-                            <Shield size={18} />
+                            <Shield size={16} />
                           </button>
                           {u.uid !== currentUser?.uid && (
                             <button 
                               onClick={() => deleteUser(u.uid)}
-                              className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                              className="p-2 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
                               title="Eliminar"
                             >
-                              <Trash2 size={18} />
+                              <Trash2 size={16} />
                             </button>
                           )}
                         </div>
@@ -327,98 +321,23 @@ export const Users: React.FC = () => {
             </table>
           </div>
 
-          {/* Mobile Card View */}
-          <div className="md:hidden divide-y divide-slate-100">
-            <AnimatePresence mode="popLayout">
-              {filteredUsers.map((u, i) => (
-                <motion.div
-                  key={`${u.uid}-${i}`}
-                  layout
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 10 }}
-                  className="p-4 space-y-3"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400 font-bold text-base border border-slate-200">
-                        {u.name.charAt(0)}
-                      </div>
-                      <div>
-                        <p className="font-bold text-slate-900 text-sm">{u.name}</p>
-                        <p className="text-[10px] text-slate-400 font-medium">@{u.username || 'sin_usuario'}</p>
-                      </div>
-                    </div>
-                    <span className={cn(
-                      "px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider border",
-                      u.role === 'ADMIN' 
-                        ? "bg-slate-900 text-white border-slate-900" 
-                        : "bg-emerald-50 text-emerald-600 border-emerald-100"
-                    )}>
-                      {u.role}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 py-1">
-                    <div className="space-y-0.5">
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Correo</p>
-                      <p className="text-[11px] text-slate-600 truncate">{u.email}</p>
-                    </div>
-                    <div className="space-y-0.5">
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Habitación</p>
-                      <p className="text-[11px] text-slate-600">{u.roomNumber || 'N/A'}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-50">
-                    <button 
-                      onClick={() => openEditModal(u)}
-                      className="flex-1 py-2 flex items-center justify-center gap-1.5 text-emerald-600 bg-emerald-50 rounded-lg text-[10px] font-bold transition-all border border-emerald-100"
-                    >
-                      <Edit2 size={12} />
-                      Editar
-                    </button>
-                    <button 
-                      onClick={() => toggleRole(u)}
-                      className={cn(
-                        "flex-1 py-2 flex items-center justify-center gap-1.5 rounded-lg text-[10px] font-bold transition-all border",
-                        u.role === 'ADMIN' ? "text-amber-600 bg-amber-50 border-amber-100" : "text-slate-600 bg-slate-50 border-slate-200"
-                      )}
-                    >
-                      <Shield size={12} />
-                      Rol
-                    </button>
-                    {u.uid !== currentUser?.uid && (
-                      <button 
-                        onClick={() => deleteUser(u.uid)}
-                        className="p-2 text-red-600 bg-red-50 rounded-lg transition-all border border-red-100"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    )}
-                  </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
-
           {filteredUsers.length === 0 && (
-            <div className="py-20 text-center">
-              <div className="w-20 h-20 bg-slate-50 rounded-[2rem] flex items-center justify-center mx-auto mb-6">
-                <Search size={32} className="text-slate-200" />
+            <div className="py-16 text-center">
+              <div className="w-16 h-16 bg-zinc-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Search size={24} className="text-zinc-300" />
               </div>
-              <h3 className="text-lg font-bold text-slate-900">No se encontraron inquilinos</h3>
-              <p className="text-slate-500 mt-1 px-6">Intenta ajustar los filtros o el término de búsqueda.</p>
+              <h3 className="text-lg font-semibold text-zinc-900">No se encontraron inquilinos</h3>
+              <p className="text-zinc-500 mt-1">Intenta ajustar los filtros o el término de búsqueda.</p>
             </div>
           )}
         </div>
 
         {/* Danger Zone */}
-        <div className="mt-16 p-8 bg-red-50 rounded-[2.5rem] border border-red-100">
+        <div className="mt-12 p-6 md:p-8 bg-red-50 rounded-3xl border border-red-100">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
-              <h3 className="text-xl font-black text-red-900 flex items-center gap-2">
-                <AlertCircle size={24} />
+              <h3 className="text-lg font-bold text-red-900 flex items-center gap-2">
+                <AlertCircle size={20} />
                 Zona de Peligro
               </h3>
               <p className="text-red-700 text-sm mt-1">
@@ -427,9 +346,9 @@ export const Users: React.FC = () => {
             </div>
             <button
               onClick={handleClearTestData}
-              className="px-8 py-4 bg-red-600 text-white rounded-2xl font-bold text-sm hover:bg-red-700 transition-all shadow-lg shadow-red-200 active:scale-95 flex items-center gap-2"
+              className="w-full md:w-auto justify-center px-6 py-3 bg-red-600 text-white rounded-xl font-bold text-sm hover:bg-red-700 transition-all shadow-sm flex items-center gap-2"
             >
-              <Trash size={20} />
+              <Trash size={18} />
               Reiniciar Sistema
             </button>
           </div>
@@ -439,66 +358,66 @@ export const Users: React.FC = () => {
       {/* Edit Modal */}
       <AnimatePresence>
         {isEditModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-zinc-900/50 backdrop-blur-sm">
             <motion.div 
-              initial={{ opacity: 0, y: 20, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 20, scale: 0.95 }}
-              className="bg-white w-full max-w-md rounded-[2.5rem] p-8 md:p-10 shadow-2xl border border-white/20"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white w-full max-w-md rounded-3xl p-8 shadow-2xl border border-zinc-100"
             >
-              <div className="flex items-center justify-between mb-8">
-                <h3 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-zinc-900">
                   {editingUser ? 'Editar Perfil' : 'Nuevo Inquilino'}
                 </h3>
                 <button 
                   onClick={() => setIsEditModalOpen(false)}
-                  className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-400"
+                  className="p-2 hover:bg-zinc-100 rounded-full transition-colors text-zinc-400"
                 >
-                  <X size={24} />
+                  <X size={20} />
                 </button>
               </div>
 
-              <form onSubmit={handleEditUser} className="space-y-6">
+              <form onSubmit={handleEditUser} className="space-y-4">
                 {!editingUser && (
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Correo Electrónico</label>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Correo Electrónico</label>
                     <input
                       type="email"
                       required
                       value={editForm.email}
                       onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                      className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-medium"
+                      className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition-all text-sm"
                       placeholder="inquilino@ejemplo.com"
                     />
                   </div>
                 )}
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Nombre Completo</label>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Nombre Completo</label>
                   <input
                     type="text"
                     required
                     value={editForm.name}
                     onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                    className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-medium"
+                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition-all text-sm"
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Nombre de Usuario</label>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Nombre de Usuario</label>
                   <input
                     type="text"
                     required
                     value={editForm.username}
                     onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
-                    className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-medium"
+                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition-all text-sm"
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Número de Habitación</label>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Número de Habitación</label>
                   <input
                     type="text"
                     value={editForm.roomNumber}
                     onChange={(e) => setEditForm({ ...editForm, roomNumber: e.target.value })}
-                    className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-medium"
+                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition-all text-sm"
                     placeholder="Ej: 301"
                   />
                 </div>
@@ -507,13 +426,13 @@ export const Users: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setIsEditModalOpen(false)}
-                    className="flex-1 py-4 text-slate-500 font-bold hover:bg-slate-50 rounded-2xl transition-all"
+                    className="flex-1 py-3 text-zinc-500 font-semibold hover:bg-zinc-50 rounded-xl transition-all"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 py-4 bg-slate-900 text-white font-bold rounded-2xl hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 active:scale-[0.98]"
+                    className="flex-1 py-3 bg-zinc-900 text-white font-semibold rounded-xl hover:bg-zinc-800 transition-all"
                   >
                     {editingUser ? 'Guardar Cambios' : 'Crear Inquilino'}
                   </button>

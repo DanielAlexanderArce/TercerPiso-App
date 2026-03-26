@@ -1,12 +1,13 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { AuthPage } from './pages/Auth';
-import { Dashboard } from './pages/Dashboard';
+import { AuthPage } from './pages/AuthNew';
+import { Dashboard } from './pages/DashboardNew';
 import { Payments } from './pages/Payments';
-import { Users } from './pages/Users';
-import { SchedulePage } from './pages/Schedule';
+import { Users } from './pages/UsersNew';
+import { SchedulePage } from './pages/ScheduleNew';
 import { Settings } from './pages/Settings';
+import { ErrorPage } from './pages/ErrorPage';
 
 const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
@@ -27,6 +28,7 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<AuthPage mode="login" />} />
           <Route path="/register" element={<AuthPage mode="register" />} />
+          <Route path="/error" element={<ErrorPage />} />
           
           <Route path="/" element={
             <PrivateRoute>

@@ -62,30 +62,28 @@ service cloud.firestore {
     }
 
     function isOwner(userId) {
-      return isAuthenticated() && (request.auth.uid == userId || ('email' in request.auth.token && request.auth.token.email.toLower() == userId.toLower()));
+      return isAuthenticated() && (request.auth.uid == userId || ('email' in request.auth.token && request.auth.token.email != null && request.auth.token.email.lower() == userId.lower()));
     }
 
     function isDocOwner() {
-      return isAuthenticated() && (resource.data.uid == request.auth.uid || ('email' in request.auth.token && 'email' in resource.data && resource.data.email.toLower() == request.auth.token.email.toLower()));
+      return isAuthenticated() && resource != null && (resource.data.uid == request.auth.uid || ('email' in request.auth.token && request.auth.token.email != null && 'email' in resource.data && resource.data.email != null && resource.data.email.lower() == request.auth.token.email.lower()));
     }
 
     function isAdmin() {
-      return isAuthenticated() && 
-        ('email' in request.auth.token && (
-          request.auth.token.email.toLower() == "alexanderarcedaniel@gmail.com" ||
-          request.auth.token.email.toLower() == "pedro@gmail.com"
-        ));
+      return isAuthenticated() && (
+          request.auth.uid == "S1zwiDJYZ3h4KbJIOqPZYOEGI423" ||
+          request.auth.uid == "oHLPQPksmhYI27b4mqCT2XIuwNz2" ||
+          (request.auth.token.email != null && (
+            request.auth.token.email.lower() == "alexanderarcedaniel@gmail.com" ||
+            request.auth.token.email.lower() == "pedro@gmail.com" ||
+            request.auth.token.email.lower() == "admin@admin.com"
+          ))
+        );
     }
 
-    // Explicitly check for admin role in the user document or by email
+    // Alias for backward compatibility if needed, but we'll use isAdmin everywhere
     function isUserAdmin() {
-      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
-      let isRoleAdmin = userDoc.exists && userDoc.data.role == 'ADMIN';
-      let isEmailAdmin = 'email' in request.auth.token && (
-          request.auth.token.email.toLower() == "alexanderarcedaniel@gmail.com" ||
-          request.auth.token.email.toLower() == "pedro@gmail.com"
-        );
-      return isAuthenticated() && (isRoleAdmin || isEmailAdmin);
+      return isAdmin();
     }
 
     function isValidUser(data) {
@@ -101,16 +99,27 @@ service cloud.firestore {
 
     function isValidPayment(data) {
       return data.keys().hasAll(['userId', 'userName', 'month', 'amount', 'status', 'createdAt', 'updatedAt']) &&
-             data.keys().hasOnly(['id', 'userId', 'userName', 'month', 'amount', 'status', 'evidenceUrl', 'createdAt', 'updatedAt']) &&
+             data.keys().hasOnly(['id', 'userId', 'userName', 'month', 'paymentDate', 'amount', 'status', 'evidenceUrl', 'createdAt', 'updatedAt']) &&
              (!('id' in data) || (data.id is string && data.id.size() < 128)) &&
              data.userId is string && data.userId.size() < 128 &&
              data.userName is string && data.userName.size() < 100 &&
              data.month is string && data.month.matches('^\\d{4}-\\d{2}$') &&
+             (!('paymentDate' in data) || (data.paymentDate is string && data.paymentDate.matches('^\\d{4}-\\d{2}-\\d{2}$'))) &&
              data.amount is number && data.amount >= 0 &&
-             data.status in ['PENDING', 'COMPLETED'] &&
+             data.status in ['PENDING', 'COMPLETED', 'REJECTED'] &&
              (!('evidenceUrl' in data) || (data.evidenceUrl == null || (data.evidenceUrl is string && data.evidenceUrl.size() < 2000000))) &&
              data.createdAt is number &&
              data.updatedAt is number;
+    }
+
+    function isValidAssignment(data) {
+      return data.keys().hasAll(['role', 'status']) &&
+             data.keys().hasOnly(['role', 'status', 'evidenceUrls', 'completedAt', 'verified']) &&
+             data.role in ['Limpieza de Baño', 'Limpieza de Pasadizo y Lavandería'] &&
+             data.status in ['PENDING', 'COMPLETED', 'REJECTED'] &&
+             (!('evidenceUrls' in data) || (data.evidenceUrls is list && data.evidenceUrls.size() <= 5)) &&
+             (!('completedAt' in data) || (data.completedAt is number)) &&
+             (!('verified' in data) || (data.verified is bool));
     }
 
     function isValidSchedule(data) {
@@ -133,7 +142,7 @@ service cloud.firestore {
              data.userId is string && data.userId.size() < 128 &&
              data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
              data.message is string && data.message.size() > 0 && data.message.size() < 1000 &&
-             data.type in ['INFO', 'WARNING', 'SUCCESS'] &&
+             data.type in ['INFO', 'WARNING', 'SUCCESS', 'ERROR'] &&
              data.read is bool &&
              data.createdAt is number;
     }
@@ -142,33 +151,36 @@ service cloud.firestore {
     // Rules
     // ===============================================================
 
+    match /{document=**} {
+      allow delete: if isAdmin();
+    }
+
     match /users/{userId} {
-      allow read: if isAuthenticated() && (isUserAdmin() || isOwner(userId) || isDocOwner() || ('email' in request.auth.token && 'email' in resource.data && resource.data.email.toLower() == request.auth.token.email.toLower()));
-      allow list: if isAuthenticated();
-      allow create: if (isUserAdmin() || (isAuthenticated() && request.resource.data.uid == request.auth.uid && request.resource.data.role == 'INQUILINO')) && isValidUser(request.resource.data);
-      allow update: if isAuthenticated() && (isUserAdmin() || (isOwner(userId) || isDocOwner()));
-      allow delete: if isUserAdmin();
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidUser(request.resource.data) && (request.resource.data.uid == request.auth.uid || ('email' in request.auth.token && request.auth.token.email != null && request.resource.data.email.lower() == request.auth.token.email.lower()));
+      allow update: if isAuthenticated() && (isAdmin() || (isOwner(userId) || isDocOwner()));
+      allow delete: if isAdmin();
     }
 
     match /payments/{paymentId} {
       allow read: if isAuthenticated();
-      allow create: if isUserAdmin() || (isAuthenticated() && (request.auth.uid == request.resource.data.userId || request.auth.token.email == request.resource.data.userId) && isValidPayment(request.resource.data));
-      allow update: if isUserAdmin() || (isAuthenticated() && (request.auth.uid == resource.data.userId || request.auth.token.email == resource.data.userId) && isValidPayment(request.resource.data));
-      allow delete: if isUserAdmin();
+      allow create: if isAdmin() || (isAuthenticated() && isValidPayment(request.resource.data) && (request.auth.uid == request.resource.data.userId || ('email' in request.auth.token && request.auth.token.email != null && request.auth.token.email.lower() == request.resource.data.userId.lower())));
+      allow update: if isAdmin() || (isAuthenticated() && isValidPayment(request.resource.data) && (request.auth.uid == resource.data.userId || ('email' in request.auth.token && request.auth.token.email != null && request.auth.token.email.lower() == resource.data.userId.lower())));
+      allow delete: if isAdmin();
     }
 
     match /schedules/{scheduleId} {
       allow read: if isAuthenticated();
-      allow create: if isUserAdmin();
-      allow delete: if isUserAdmin();
-      allow update: if isUserAdmin() || isAuthenticated();
+      allow create: if isAdmin();
+      allow delete: if isAdmin();
+      allow update: if isAdmin() || (isAuthenticated() && isValidSchedule(request.resource.data) && (request.auth.uid == resource.data.assignedUserId || ('email' in request.auth.token && request.auth.token.email != null && request.auth.token.email.lower() == resource.data.assignedUserId.lower())));
     }
 
     match /notifications/{notificationId} {
-      allow read: if isAuthenticated() && (isUserAdmin() || request.auth.uid == resource.data.userId || request.auth.token.email == resource.data.userId);
+      allow read: if isAuthenticated() && (isAdmin() || request.auth.uid == resource.data.userId || ('email' in request.auth.token && request.auth.token.email != null && request.auth.token.email.lower() == resource.data.userId.lower()));
       allow create: if isAuthenticated() && isValidNotification(request.resource.data);
-      allow update: if isAuthenticated() && (isUserAdmin() || request.auth.uid == resource.data.userId || request.auth.token.email == resource.data.userId) && isValidNotification(request.resource.data);
-      allow delete: if isUserAdmin();
+      allow update: if isAuthenticated() && isValidNotification(request.resource.data) && (isAdmin() || request.auth.uid == resource.data.userId || ('email' in request.auth.token && request.auth.token.email != null && request.auth.token.email.lower() == resource.data.userId.lower()));
+      allow delete: if isAdmin();
     }
   }
 }

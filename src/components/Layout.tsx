@@ -4,7 +4,7 @@ import { Role } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { NotificationCenter } from './NotificationCenter';
 import { useAuth } from '../context/AuthContext';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'motion/react';
 import { Menu, X } from 'lucide-react';
 
 interface LayoutProps {
@@ -29,7 +29,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, role, activeTab, onTab
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="min-h-screen bg-zinc-50 flex font-sans">
       <Sidebar 
         role={role} 
         activeTab={activeTab} 
@@ -38,53 +38,39 @@ export const Layout: React.FC<LayoutProps> = ({ children, role, activeTab, onTab
         onClose={() => setIsSidebarOpen(false)}
       />
       
-      <main className="flex-1 lg:ml-72 flex flex-col min-h-screen">
-        {/* Top Header */}
-        <header className="sticky top-0 z-30 bg-white/70 backdrop-blur-xl border-b border-slate-200/60 px-6 md:px-10 py-5 flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            {/* Mobile Toggle Button */}
+      <main className="flex-1 lg:ml-72 flex flex-col min-h-screen min-w-0">
+        <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-zinc-200 px-4 md:px-10 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3 md:gap-4">
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="lg:hidden p-2.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all"
+              className="lg:hidden p-2 -ml-2 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-colors"
             >
-              <motion.div
-                animate={{ rotate: isSidebarOpen ? 90 : 0 }}
-                transition={{ duration: 0.2 }}
-              >
-                {isSidebarOpen ? <X size={22} /> : <Menu size={22} />}
-              </motion.div>
+              {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
-            
-            <div className="lg:hidden">
-              <h1 className="text-lg font-bold text-slate-900 tracking-tight">Gestión 3P</h1>
-            </div>
-
-            <div className="hidden lg:block">
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                {activeTab === 'dashboard' ? 'Panel de Control' : 
-                 activeTab === 'schedules' ? 'Roles Semanales' :
-                 activeTab === 'payments' ? 'Pagos Internet' :
-                 activeTab === 'users' ? 'Gestión Inquilinos' : 'Configuración'}
-              </p>
-            </div>
+            <h1 className="text-xs md:text-sm font-semibold text-zinc-900 tracking-tight uppercase tracking-widest truncate">
+              {activeTab === 'dashboard' ? 'Panel de Control' : 
+               activeTab === 'schedules' ? 'Roles Semanales' :
+               activeTab === 'payments' ? 'Pagos Internet' :
+               activeTab === 'users' ? 'Gestión Inquilinos' : 'Configuración'}
+            </h1>
           </div>
           
-          <div className="flex items-center space-x-3 md:space-x-5">
+          <div className="flex items-center gap-2 md:gap-4">
             <NotificationCenter />
-            <div className="h-6 w-[1px] bg-slate-200 mx-1 hidden md:block"></div>
-            <div className="flex items-center space-x-3 group cursor-pointer" onClick={() => navigate('/settings')}>
+            <div className="w-px h-6 bg-zinc-200 hidden md:block" />
+            <button onClick={() => navigate('/settings')} className="flex items-center gap-3 group">
               <div className="text-right hidden sm:block">
-                <p className="text-sm font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">{user?.name}</p>
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none">{user?.role}</p>
+                <p className="text-xs font-semibold text-zinc-900 group-hover:text-zinc-600 transition-colors">{user?.name}</p>
+                <p className="text-[10px] text-zinc-500 uppercase tracking-wider">{user?.role}</p>
               </div>
-              <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-slate-200 group-hover:bg-emerald-600 transition-all">
+              <div className="w-8 h-8 md:w-9 md:h-9 bg-zinc-900 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-sm shrink-0">
                 {user?.name?.charAt(0)}
               </div>
-            </div>
+            </button>
           </div>
         </header>
 
-        <div className="p-4 md:p-10 max-w-7xl w-full mx-auto flex-1">
+        <div className="p-4 md:p-6 lg:p-10 max-w-7xl w-full mx-auto flex-1 min-w-0">
           {children}
         </div>
       </main>

@@ -15,8 +15,9 @@ export interface Payment {
   userId: string;
   userName: string;
   month: string; // e.g., "2024-03"
+  paymentDate?: string; // e.g., "2024-03-24"
   amount: number;
-  status: 'PENDING' | 'COMPLETED';
+  status: 'PENDING' | 'COMPLETED' | 'REJECTED';
   evidenceUrl?: string;
   createdAt: number;
   updatedAt: number;

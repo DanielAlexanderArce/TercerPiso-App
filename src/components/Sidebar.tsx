@@ -17,11 +17,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ role, activeTab, onTabChange, 
   const navigate = useNavigate();
 
   const menuItems = [
-    { id: 'dashboard', label: 'Inicio', icon: LayoutDashboard, roles: ['ADMIN', 'INQUILINO'] },
-    { id: 'schedules', label: 'Roles Semanales', icon: CalendarIcon, roles: ['ADMIN', 'INQUILINO'] },
-    { id: 'payments', label: 'Pagos Internet', icon: CreditCard, roles: ['ADMIN', 'INQUILINO'] },
-    { id: 'users', label: 'Inquilinos', icon: Users, roles: ['ADMIN'] },
-    { id: 'settings', label: 'Configuración', icon: Settings, roles: ['ADMIN', 'INQUILINO'] },
+    { id: 'dashboard', label: 'Inicio', icon: LayoutDashboard, roles: ['ADMIN', 'INQUILINO'], path: '/' },
+    { id: 'schedules', label: 'Roles Semanales', icon: CalendarIcon, roles: ['ADMIN', 'INQUILINO'], path: '/schedules' },
+    { id: 'payments', label: 'Pagos Internet', icon: CreditCard, roles: ['ADMIN', 'INQUILINO'], path: '/payments' },
+    { id: 'users', label: 'Inquilinos', icon: Users, roles: ['ADMIN'], path: '/users' },
+    { id: 'settings', label: 'Configuración', icon: Settings, roles: ['ADMIN', 'INQUILINO'], path: '/settings' },
   ];
 
   const filteredItems = menuItems.filter(item => item.roles.includes(role));
@@ -66,6 +66,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ role, activeTab, onTabChange, 
                 key={item.id}
                 onClick={() => {
                   onTabChange(item.id);
+                  navigate(item.path);
                   onClose();
                 }}
                 className={cn(

@@ -24,8 +24,9 @@
         "userId": { "type": "string" },
         "userName": { "type": "string" },
         "month": { "type": "string" },
+        "paymentDate": { "type": "string", "format": "date" },
         "amount": { "type": "number" },
-        "status": { "type": "string", "enum": ["PENDING", "COMPLETED"] },
+        "status": { "type": "string", "enum": ["PENDING", "COMPLETED", "REJECTED"] },
         "evidenceUrl": { "type": "string" },
         "createdAt": { "type": "number" },
         "updatedAt": { "type": "number" }

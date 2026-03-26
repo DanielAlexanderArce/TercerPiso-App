@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { Payment, User } from '../types';
 import { Layout } from '../components/Layout';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, DollarSign, CheckCircle2, Clock, Filter, AlertCircle, Camera, Image as ImageIcon, X, Eye, Receipt, ArrowUpRight, Search, Calendar as CalendarIcon } from 'lucide-react';
+import { Plus, DollarSign, CheckCircle2, Clock, Filter, AlertCircle, Camera, Image as ImageIcon, X, Eye, Receipt, ArrowUpRight, Search, Calendar as CalendarIcon, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
@@ -18,15 +18,17 @@ export const Payments: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'ALL' | 'PENDING' | 'COMPLETED'>('ALL');
+  const [filterStatus, setFilterStatus] = useState<'ALL' | 'PENDING' | 'COMPLETED' | 'REJECTED'>('ALL');
   
-  const [confirmApprove, setConfirmApprove] = useState<{ isOpen: boolean; paymentId: string | null }>({
+  const [confirmApprove, setConfirmApprove] = useState<{ isOpen: boolean; paymentId: string | null; action: 'APPROVE' | 'REJECT' }>({
     isOpen: false,
-    paymentId: null
+    paymentId: null,
+    action: 'APPROVE'
   });
 
   // Form state
   const [month, setMonth] = useState(format(new Date(), 'yyyy-MM'));
+  const [paymentDate, setPaymentDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [amount, setAmount] = useState(20); // Default amount
   const [selectedUserId, setSelectedUserId] = useState('');
   const [evidenceBase64, setEvidenceBase64] = useState<string | null>(null);
@@ -62,17 +64,20 @@ export const Payments: React.FC = () => {
 
   const handleRegisterPayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || user.role === 'ADMIN') return; // Admins cannot register payments
 
-    const targetUserId = user.role === 'ADMIN' ? selectedUserId : user.uid;
-    const targetUser = users.find(u => u.uid === targetUserId);
+    if (!evidenceBase64) {
+      alert('Por favor, sube un comprobante de pago.');
+      return;
+    }
 
     const newPayment = {
-      userId: targetUserId,
-      userName: targetUser?.name || user.name,
+      userId: user.uid,
+      userName: user.name,
       month,
+      paymentDate,
       amount: Number(amount),
-      status: user.role === 'ADMIN' ? 'COMPLETED' : 'PENDING',
+      status: 'PENDING',
       evidenceUrl: evidenceBase64,
       createdAt: Date.now(),
       updatedAt: Date.now()
@@ -107,30 +112,34 @@ export const Payments: React.FC = () => {
     }
   };
 
-  const handleConfirmApprove = async () => {
+  const handleConfirmAction = async () => {
     if (!confirmApprove.paymentId || user?.role !== 'ADMIN') return;
     try {
       const paymentRef = doc(db, 'payments', confirmApprove.paymentId);
       const paymentSnap = await getDoc(paymentRef);
       const paymentData = paymentSnap.data();
 
+      const newStatus = confirmApprove.action === 'APPROVE' ? 'COMPLETED' : 'REJECTED';
+
       await updateDoc(paymentRef, {
-        status: 'COMPLETED',
+        status: newStatus,
         updatedAt: Date.now()
       });
 
       if (paymentData) {
         await addDoc(collection(db, 'notifications'), {
           userId: paymentData.userId,
-          title: 'Pago Aprobado',
-          message: `Tu pago de ${paymentData.month} ha sido aprobado.`,
-          type: 'SUCCESS',
+          title: confirmApprove.action === 'APPROVE' ? 'Pago Aprobado' : 'Pago Rechazado',
+          message: confirmApprove.action === 'APPROVE' 
+            ? `Tu pago de ${paymentData.month} ha sido aprobado.`
+            : `Tu pago de ${paymentData.month} ha sido rechazado. Por favor, verifica el comprobante.`,
+          type: confirmApprove.action === 'APPROVE' ? 'SUCCESS' : 'ERROR',
           read: false,
           createdAt: Date.now()
         });
       }
 
-      setConfirmApprove({ isOpen: false, paymentId: null });
+      setConfirmApprove({ isOpen: false, paymentId: null, action: 'APPROVE' });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `payments/${confirmApprove.paymentId}`);
     }
@@ -151,13 +160,15 @@ export const Payments: React.FC = () => {
             <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Pagos de Internet</h1>
             <p className="text-slate-500 mt-1">Control mensual de cuotas y comprobantes de servicio.</p>
           </div>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 active:scale-95 flex items-center gap-2"
-          >
-            <Plus size={20} />
-            Registrar Nuevo Pago
-          </button>
+          {user?.role === 'INQUILINO' && (
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="w-full md:w-auto px-8 py-4 bg-slate-900 text-white rounded-2xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 active:scale-95 flex items-center justify-center gap-2"
+            >
+              <Plus size={20} />
+              Registrar Pago
+            </button>
+          )}
         </div>
 
         {/* Stats Summary */}
@@ -189,7 +200,7 @@ export const Payments: React.FC = () => {
             />
           </div>
           <div className="flex gap-2 overflow-x-auto pb-2 lg:pb-0 scrollbar-hide">
-            {(['ALL', 'PENDING', 'COMPLETED'] as const).map((status) => (
+            {(['ALL', 'PENDING', 'COMPLETED', 'REJECTED'] as const).map((status) => (
               <button
                 key={status}
                 onClick={() => setFilterStatus(status)}
@@ -200,7 +211,7 @@ export const Payments: React.FC = () => {
                     : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
                 )}
               >
-                {status === 'ALL' ? 'Todos' : status === 'PENDING' ? 'Pendientes' : 'Completados'}
+                {status === 'ALL' ? 'Todos' : status === 'PENDING' ? 'Pendientes' : status === 'COMPLETED' ? 'Completados' : 'Rechazados'}
               </button>
             ))}
           </div>
@@ -240,9 +251,16 @@ export const Payments: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-8 py-6">
-                        <div className="flex items-center gap-2 text-slate-500 text-sm font-medium">
-                          <CalendarIcon size={14} className="text-slate-300" />
-                          {format(new Date(p.month + '-02'), 'MMMM yyyy', { locale: es })}
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2 text-slate-500 text-sm font-medium">
+                            <CalendarIcon size={14} className="text-slate-300" />
+                            {format(new Date(p.month + '-02'), 'MMMM yyyy', { locale: es })}
+                          </div>
+                          {p.paymentDate && (
+                            <span className="text-[10px] text-slate-400 font-medium ml-5">
+                              Pagado el {format(new Date(p.paymentDate + 'T12:00:00'), 'dd MMM, yyyy', { locale: es })}
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="px-8 py-6">
@@ -255,15 +273,17 @@ export const Payments: React.FC = () => {
                           "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider border flex items-center w-fit gap-1.5",
                           p.status === 'COMPLETED' 
                             ? "bg-emerald-50 text-emerald-600 border-emerald-100" 
+                            : p.status === 'REJECTED'
+                            ? "bg-red-50 text-red-600 border-red-100"
                             : "bg-amber-50 text-amber-600 border-amber-100"
                         )}>
-                          {p.status === 'COMPLETED' ? <CheckCircle2 size={12} /> : <Clock size={12} />}
-                          {p.status === 'COMPLETED' ? 'Completado' : 'Pendiente'}
+                          {p.status === 'COMPLETED' ? <CheckCircle2 size={12} /> : p.status === 'REJECTED' ? <XCircle size={12} /> : <Clock size={12} />}
+                          {p.status === 'COMPLETED' ? 'Completado' : p.status === 'REJECTED' ? 'Rechazado' : 'Pendiente'}
                         </span>
                       </td>
                       <td className="px-8 py-6 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          {p.evidenceUrl ? (
+                          {p.evidenceUrl && (
                             <button 
                               onClick={() => setViewingEvidence(p.evidenceUrl!)}
                               className="p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
@@ -271,21 +291,22 @@ export const Payments: React.FC = () => {
                             >
                               <Receipt size={18} />
                             </button>
-                          ) : (
-                            (user?.uid === p.userId && user?.role !== 'ADMIN') && (
-                              <label className="cursor-pointer p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all">
-                                <Camera size={18} />
-                                <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, p.id)} className="hidden" />
-                              </label>
-                            )
                           )}
                           {user?.role === 'ADMIN' && p.status === 'PENDING' && (
-                            <button 
-                              onClick={() => setConfirmApprove({ isOpen: true, paymentId: p.id })}
-                              className="px-4 py-2 bg-emerald-500 text-white text-xs font-bold rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-100"
-                            >
-                              Aprobar
-                            </button>
+                            <>
+                              <button 
+                                onClick={() => setConfirmApprove({ isOpen: true, paymentId: p.id, action: 'APPROVE' })}
+                                className="px-4 py-2 bg-emerald-500 text-white text-xs font-bold rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-100"
+                              >
+                                Aprobar
+                              </button>
+                              <button 
+                                onClick={() => setConfirmApprove({ isOpen: true, paymentId: p.id, action: 'REJECT' })}
+                                className="px-4 py-2 bg-red-500 text-white text-xs font-bold rounded-xl hover:bg-red-600 transition-all shadow-lg shadow-red-100"
+                              >
+                                Rechazar
+                              </button>
+                            </>
                           )}
                         </div>
                       </td>
@@ -318,6 +339,11 @@ export const Payments: React.FC = () => {
                         <p className="text-[10px] text-slate-400 font-medium">
                           {format(new Date(p.month + '-02'), 'MMMM yyyy', { locale: es })}
                         </p>
+                        {p.paymentDate && (
+                          <p className="text-[9px] text-slate-400 font-medium mt-0.5">
+                            Pagado: {format(new Date(p.paymentDate + 'T12:00:00'), 'dd MMM, yyyy', { locale: es })}
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div className="text-right">
@@ -330,14 +356,16 @@ export const Payments: React.FC = () => {
                       "px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider border flex items-center w-fit gap-1",
                       p.status === 'COMPLETED' 
                         ? "bg-emerald-50 text-emerald-600 border-emerald-100" 
+                        : p.status === 'REJECTED'
+                        ? "bg-red-50 text-red-600 border-red-100"
                         : "bg-amber-50 text-amber-600 border-amber-100"
                     )}>
-                      {p.status === 'COMPLETED' ? <CheckCircle2 size={10} /> : <Clock size={10} />}
-                      {p.status === 'COMPLETED' ? 'Completado' : 'Pendiente'}
+                      {p.status === 'COMPLETED' ? <CheckCircle2 size={10} /> : p.status === 'REJECTED' ? <XCircle size={10} /> : <Clock size={10} />}
+                      {p.status === 'COMPLETED' ? 'Completado' : p.status === 'REJECTED' ? 'Rechazado' : 'Pendiente'}
                     </span>
 
                     <div className="flex items-center gap-2">
-                      {p.evidenceUrl ? (
+                      {p.evidenceUrl && (
                         <button 
                           onClick={() => setViewingEvidence(p.evidenceUrl!)}
                           className="flex items-center gap-1.5 px-2.5 py-1.5 text-emerald-600 bg-emerald-50 rounded-lg text-[10px] font-bold transition-all border border-emerald-100"
@@ -345,22 +373,22 @@ export const Payments: React.FC = () => {
                           <Receipt size={12} />
                           Ver
                         </button>
-                      ) : (
-                        (user?.uid === p.userId && user?.role !== 'ADMIN') && (
-                          <label className="cursor-pointer flex items-center gap-1.5 px-2.5 py-1.5 text-slate-600 bg-slate-50 rounded-lg text-[10px] font-bold transition-all border border-slate-200">
-                            <Camera size={12} />
-                            Subir
-                            <input type="file" accept="image/*" onChange={(e) => handleFileChange(e, p.id)} className="hidden" />
-                          </label>
-                        )
                       )}
                       {user?.role === 'ADMIN' && p.status === 'PENDING' && (
-                        <button 
-                          onClick={() => setConfirmApprove({ isOpen: true, paymentId: p.id })}
-                          className="px-3 py-1.5 bg-emerald-500 text-white text-[10px] font-bold rounded-lg hover:bg-emerald-600 transition-all shadow-md active:scale-95"
-                        >
-                          Aprobar
-                        </button>
+                        <>
+                          <button 
+                            onClick={() => setConfirmApprove({ isOpen: true, paymentId: p.id, action: 'APPROVE' })}
+                            className="px-3 py-1.5 bg-emerald-500 text-white text-[10px] font-bold rounded-lg hover:bg-emerald-600 transition-all shadow-md active:scale-95"
+                          >
+                            Aprobar
+                          </button>
+                          <button 
+                            onClick={() => setConfirmApprove({ isOpen: true, paymentId: p.id, action: 'REJECT' })}
+                            className="px-3 py-1.5 bg-red-500 text-white text-[10px] font-bold rounded-lg hover:bg-red-600 transition-all shadow-md active:scale-95"
+                          >
+                            Rechazar
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -399,20 +427,16 @@ export const Payments: React.FC = () => {
               </div>
 
               <form onSubmit={handleRegisterPayment} className="space-y-6">
-                {user?.role === 'ADMIN' && (
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Inquilino</label>
-                    <select
-                      required
-                      value={selectedUserId || ''}
-                      onChange={(e) => setSelectedUserId(e.target.value)}
-                      className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-medium"
-                    >
-                      <option value="">Seleccionar inquilino</option>
-                      {users.map((u, i) => <option key={`${u.uid}-${i}`} value={u.uid || ''}>{u.name}</option>)}
-                    </select>
-                  </div>
-                )}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Fecha de Pago</label>
+                  <input
+                    type="date"
+                    required
+                    value={paymentDate}
+                    onChange={(e) => setPaymentDate(e.target.value)}
+                    className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all font-medium"
+                  />
+                </div>
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Mes correspondiente</label>
                   <input
@@ -435,12 +459,12 @@ export const Payments: React.FC = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Comprobante</label>
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Comprobante (Requerido)</label>
                   <div className="flex items-center gap-4">
                     <label className="flex-1 cursor-pointer bg-slate-50 hover:bg-slate-100 border border-slate-200 border-dashed p-4 rounded-2xl flex flex-col items-center justify-center transition-all group">
                       <Camera size={24} className="text-slate-300 group-hover:text-emerald-500 mb-2" />
                       <span className="text-xs font-bold text-slate-400 group-hover:text-slate-600">{evidenceBase64 ? 'Cambiar Foto' : 'Subir Foto'}</span>
-                      <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+                      <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" required={!evidenceBase64} />
                     </label>
                     {evidenceBase64 && (
                       <div className="relative w-20 h-20">
@@ -453,7 +477,7 @@ export const Payments: React.FC = () => {
 
                 <div className="flex gap-3 pt-4">
                   <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-4 text-slate-500 font-bold hover:bg-slate-50 rounded-2xl transition-all">Cancelar</button>
-                  <button type="submit" className="flex-1 py-4 bg-slate-900 text-white font-bold rounded-2xl hover:bg-slate-800 transition-all shadow-lg shadow-slate-200">Registrar</button>
+                  <button type="submit" className="flex-1 py-4 bg-slate-900 text-white font-bold rounded-2xl hover:bg-slate-800 transition-all shadow-lg shadow-slate-200">Enviar Pago</button>
                 </div>
               </form>
             </motion.div>
@@ -463,11 +487,11 @@ export const Payments: React.FC = () => {
 
       <ConfirmModal
         isOpen={confirmApprove.isOpen}
-        title="Aprobar Pago"
-        message="¿Deseas marcar este pago como completado?"
-        onConfirm={handleConfirmApprove}
-        onCancel={() => setConfirmApprove({ isOpen: false, paymentId: null })}
-        type="info"
+        title={confirmApprove.action === 'APPROVE' ? "Aprobar Pago" : "Rechazar Pago"}
+        message={confirmApprove.action === 'APPROVE' ? "¿Deseas marcar este pago como aprobado?" : "¿Deseas rechazar este comprobante de pago?"}
+        onConfirm={handleConfirmAction}
+        onCancel={() => setConfirmApprove({ isOpen: false, paymentId: null, action: 'APPROVE' })}
+        type={confirmApprove.action === 'APPROVE' ? "info" : "danger"}
       />
 
       {/* Evidence Viewer */}
