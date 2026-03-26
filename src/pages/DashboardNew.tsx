@@ -172,6 +172,13 @@ export const Dashboard: React.FC = () => {
             });
             console.log('Firestore updated successfully');
             
+            // Force a local state update to trigger re-render
+            setCurrentSchedule((prev: any) => ({
+              ...prev,
+              assignments: updatedAssignments,
+              updatedAt: Date.now()
+            }));
+            
             setIsUploading(null);
             setUploadProgress(prev => {
               const next = { ...prev };
