@@ -420,6 +420,7 @@ export const SchedulePage: React.FC = () => {
                         const isAssignedUser = user && (
                           user.uid === schedule.assignedUserId || 
                           user.email === schedule.assignedUserId || 
+                          (user.email && schedule.assignedUserName && user.email.toLowerCase() === schedule.assignedUserName.trim().toLowerCase()) ||
                           (user.name && schedule.assignedUserName && user.name.trim().toLowerCase() === schedule.assignedUserName.trim().toLowerCase())
                         );
                         const canUpload = isAssignedUser || user?.role === 'ADMIN';
@@ -482,7 +483,9 @@ export const SchedulePage: React.FC = () => {
                                       <input 
                                         type="file" 
                                         accept="image/*" 
-                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" 
+                                        capture="environment"
+                                        title="Subir evidencia"
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-30" 
                                         onChange={(e) => handleFileUpload(schedule.id, assign.role, e)} 
                                         disabled={isUploadingThis} 
                                       />
@@ -493,7 +496,12 @@ export const SchedulePage: React.FC = () => {
                                             {uploadProgress[`${schedule.id}-${assign.role}`] || 0}%
                                           </span>
                                         </div>
-                                      ) : <Plus size={16} />}
+                                      ) : (
+                                        <div className="flex flex-col items-center gap-1">
+                                          <Plus size={16} />
+                                          <span className="text-[6px] font-bold uppercase">Subir</span>
+                                        </div>
+                                      )}
                                     </div>
                                   )}
                                 </div>
@@ -503,7 +511,9 @@ export const SchedulePage: React.FC = () => {
                                     <input 
                                       type="file" 
                                       accept="image/*" 
-                                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" 
+                                      capture="environment"
+                                      title="Subir evidencia"
+                                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-30" 
                                       onChange={(e) => handleFileUpload(schedule.id, assign.role, e)} 
                                       disabled={isUploadingThis} 
                                     />

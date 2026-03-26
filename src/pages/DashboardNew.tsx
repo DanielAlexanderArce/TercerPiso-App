@@ -83,6 +83,7 @@ export const Dashboard: React.FC = () => {
   const isMySchedule = currentSchedule && (
     currentSchedule.assignedUserId === user.uid || 
     currentSchedule.assignedUserId === user.email ||
+    (user.email && currentSchedule.assignedUserName && user.email.toLowerCase() === currentSchedule.assignedUserName.trim().toLowerCase()) ||
     (user.name && currentSchedule.assignedUserName && user.name.trim().toLowerCase() === currentSchedule.assignedUserName.trim().toLowerCase())
   );
   const myAssignments = isMySchedule ? currentSchedule?.assignments || [] : [];
@@ -335,11 +336,13 @@ export const Dashboard: React.FC = () => {
                                 <input 
                                   type="file" 
                                   accept="image/*" 
-                                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
+                                  capture="environment"
+                                  title="Subir evidencia"
+                                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" 
                                   onChange={(e) => handleFileUpload(currentSchedule.id, assignment.role, e)} 
                                   disabled={isUploading?.scheduleId === currentSchedule.id && isUploading?.role === assignment.role} 
                                 />
-                                <button className="flex items-center gap-2 px-3 py-1.5 bg-zinc-900 text-white rounded-xl hover:bg-zinc-800 transition-all shadow-md active:scale-95">
+                                <button className="flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white rounded-xl hover:bg-zinc-800 transition-all shadow-md active:scale-95">
                                   {isUploading?.scheduleId === currentSchedule.id && isUploading?.role === assignment.role ? (
                                     <>
                                       <Loader2 className="animate-spin" size={14} />
@@ -349,8 +352,10 @@ export const Dashboard: React.FC = () => {
                                     </>
                                   ) : (
                                     <>
-                                      <Upload size={14} />
-                                      <span className="text-[10px] font-bold">Subir Evidencia</span>
+                                      <div className="flex items-center gap-1.5">
+                                        <Upload size={14} />
+                                        <span className="text-[10px] font-bold">Subir Evidencia</span>
+                                      </div>
                                     </>
                                   )}
                                 </button>
