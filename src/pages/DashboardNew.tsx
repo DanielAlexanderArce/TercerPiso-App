@@ -125,13 +125,6 @@ export const Dashboard: React.FC = () => {
         }, 
         (error) => {
           console.error('CRITICAL: Upload failed for', uploadKey, error);
-          // Check for common storage errors
-          let message = error.message;
-          if (error.code === 'storage/unauthorized') {
-            message = 'Permisos insuficientes en Storage. Por favor contacta al administrador.';
-          } else if (error.code === 'storage/quota-exceeded') {
-            message = 'Cuota de almacenamiento excedida.';
-          }
           setIsUploading(null);
           setUploadProgress(prev => {
             const next = { ...prev };
@@ -139,7 +132,9 @@ export const Dashboard: React.FC = () => {
             return next;
           });
           
-          navigate('/error', { state: { error: message } });
+          // En lugar de navegar a una página de error que podría fallar,
+          // mostramos una alerta amigable y permitimos reintentar.
+          alert('No se pudo subir la imagen. Por favor, intenta de nuevo.');
         }, 
         async () => {
           try {
@@ -193,7 +188,7 @@ export const Dashboard: React.FC = () => {
               delete next[uploadKey];
               return next;
             });
-            navigate('/error', { state: { error: error.message || error } });
+            alert('Error al guardar la evidencia: ' + (error.message || error));
           }
         }
       );
