@@ -4,12 +4,13 @@ import { Layout } from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { CreditCard, Users, ArrowRight, Calendar, Bell, Shield, CheckCircle2, Clock, AlertTriangle, FileText, Sparkles, Home, Upload, Loader2, X } from 'lucide-react';
-import { collection, query, where, getDocs, limit, orderBy, onSnapshot, updateDoc, doc } from 'firebase/firestore';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db } from '../firebase';
+import { collection, query, where, getDocs, limit, orderBy, onSnapshot, updateDoc, doc, getDoc } from 'firebase/firestore';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '../firebase';
 import { format, isSameWeek, parseISO, startOfWeek } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Payment, User } from '../types';
+import { compressImage } from '../utils/imageCompression';
 import { cn } from '../utils/cn';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 
@@ -105,56 +106,25 @@ export const Dashboard: React.FC = () => {
     const uploadKey = `${scheduleId}-${role}`;
     setIsUploading({ scheduleId, role });
     setUploadProgress(prev => ({ ...prev, [uploadKey]: 0 }));
-
     try {
-      // Compress image before upload
-      const compressedBlob = await new Promise<Blob>((resolve, reject) => {
-        const img = new Image();
-        img.src = URL.createObjectURL(file);
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const MAX_WIDTH = 800; // Reduced from 1000
-          const MAX_HEIGHT = 800; // Reduced from 1000
-          let width = img.width;
-          let height = img.height;
+      console.log('Starting upload for:', scheduleId, role);
+      
+      const compressedBlob = await compressImage(file);
+      console.log('Image compressed successfully, size:', compressedBlob.size);
 
-          if (width > height) {
-            if (width > MAX_WIDTH) {
-              height *= MAX_WIDTH / width;
-              width = MAX_WIDTH;
-            }
-          } else {
-            if (height > MAX_HEIGHT) {
-              width *= MAX_HEIGHT / height;
-              height = MAX_HEIGHT;
-            }
-          }
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx?.drawImage(img, 0, 0, width, height);
-          URL.revokeObjectURL(img.src); // Clean up
-          canvas.toBlob((blob) => {
-            if (blob) resolve(blob);
-            else reject(new Error('Error al comprimir imagen'));
-          }, 'image/jpeg', 0.5); // Reduced quality from 0.6 to 0.5
-        };
-        img.onerror = reject;
-      });
-
-      const storage = getStorage();
       const storageRef = ref(storage, `evidence/${scheduleId}/${role}/${Date.now()}_compressed.jpg`);
       
-      const { uploadBytesResumable, getDownloadURL } = await import('firebase/storage');
       const uploadTask = uploadBytesResumable(storageRef, compressedBlob);
 
       uploadTask.on('state_changed', 
         (snapshot) => {
           const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          console.log(`Upload progress: ${progress}%`);
           setUploadProgress(prev => ({ ...prev, [uploadKey]: Math.round(progress) }));
         }, 
         (error) => {
-          console.error('Upload error:', error);
+          console.error('Upload error details:', error);
+          alert('Error al subir la imagen: ' + error.message);
           setIsUploading(null);
           setUploadProgress(prev => {
             const next = { ...prev };
@@ -163,9 +133,19 @@ export const Dashboard: React.FC = () => {
           });
         }, 
         async () => {
+          console.log('Upload completed, getting download URL...');
           const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
+          console.log('Download URL obtained:', downloadUrl);
           
-          const updatedAssignments = currentSchedule.assignments.map((a: any) => {
+          // Fetch latest doc to avoid stale state issues
+          const scheduleRef = doc(db, 'schedules', scheduleId);
+          const scheduleSnap = await getDoc(scheduleRef);
+          if (!scheduleSnap.exists()) {
+            throw new Error('El documento de limpieza no existe');
+          }
+          const latestSchedule = scheduleSnap.data();
+
+          const updatedAssignments = latestSchedule.assignments.map((a: any) => {
             if (a.role === role) {
               const currentUrls = a.evidenceUrls || [];
               return {
@@ -176,10 +156,11 @@ export const Dashboard: React.FC = () => {
             return a;
           });
 
-          await updateDoc(doc(db, 'schedules', scheduleId), {
+          await updateDoc(scheduleRef, {
             assignments: updatedAssignments,
             updatedAt: Date.now()
           });
+          console.log('Firestore updated successfully');
           
           setIsUploading(null);
           setUploadProgress(prev => {
@@ -189,15 +170,15 @@ export const Dashboard: React.FC = () => {
           });
         }
       );
-    } catch (error) {
-      console.error('Error uploading evidence:', error);
+    } catch (error: any) {
+      console.error('Error in handleFileUpload:', error);
+      alert('Error: ' + error.message);
       setIsUploading(null);
       setUploadProgress(prev => {
         const next = { ...prev };
         delete next[uploadKey];
         return next;
       });
-      handleFirestoreError(error, OperationType.UPDATE, `schedules/${scheduleId}`);
     }
   };
 

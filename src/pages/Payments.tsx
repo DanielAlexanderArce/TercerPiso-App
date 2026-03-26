@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, onSnapshot, addDoc, updateDoc, doc, orderBy, where, getDoc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '../firebase';
 import { useAuth } from '../context/AuthContext';
 import { Payment, User } from '../types';
 import { Layout } from '../components/Layout';
@@ -8,6 +9,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Plus, DollarSign, CheckCircle2, Clock, Filter, AlertCircle, Camera, Image as ImageIcon, X, Eye, Receipt, ArrowUpRight, Search, Calendar as CalendarIcon, XCircle, Upload, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { compressImage } from '../utils/imageCompression';
 import { handleFirestoreError, OperationType } from '../utils/firestoreErrorHandler';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { cn } from '../utils/cn';
@@ -31,8 +33,9 @@ export const Payments: React.FC = () => {
   const [paymentDate, setPaymentDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [amount, setAmount] = useState(20); // Default amount
   const [selectedUserId, setSelectedUserId] = useState('');
-  const [evidenceBase64, setEvidenceBase64] = useState<string | null>(null);
+  const [evidenceUrl, setEvidenceUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [viewingEvidence, setViewingEvidence] = useState<string | null>(null);
 
   useEffect(() => {
@@ -67,7 +70,7 @@ export const Payments: React.FC = () => {
     e.preventDefault();
     if (!user || user.role === 'ADMIN') return; // Admins cannot register payments
 
-    if (!evidenceBase64) {
+    if (!evidenceUrl) {
       alert('Por favor, sube un comprobante de pago.');
       return;
     }
@@ -79,7 +82,7 @@ export const Payments: React.FC = () => {
       paymentDate,
       amount: Number(amount),
       status: 'PENDING',
-      evidenceUrl: evidenceBase64,
+      evidenceUrl: evidenceUrl,
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
@@ -87,35 +90,55 @@ export const Payments: React.FC = () => {
     try {
       await addDoc(collection(db, 'payments'), newPayment);
       setIsModalOpen(false);
-      setEvidenceBase64(null);
+      setEvidenceUrl(null);
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'payments');
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, paymentId?: string) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, paymentId?: string) => {
     const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 1 * 1024 * 1024) {
-        alert('La imagen es demasiado grande. El límite es 1MB.');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64 = reader.result as string;
-        if (paymentId) {
-          setIsUploading(paymentId);
-          try {
-            await updateDoc(doc(db, 'payments', paymentId), { evidenceUrl: base64, updatedAt: Date.now() });
-          } catch (error) {
-            handleFirestoreError(error, OperationType.UPDATE, `payments/${paymentId}`);
-          }
+    if (!file) return;
+
+    setIsUploading(paymentId || 'new');
+    setUploadProgress(0);
+
+    try {
+      const compressedBlob = await compressImage(file);
+      console.log('Payment image compressed successfully, size:', compressedBlob.size);
+
+      const storageRef = ref(storage, `payments/${user?.uid}/${Date.now()}_compressed.jpg`);
+      const uploadTask = uploadBytesResumable(storageRef, compressedBlob);
+
+      uploadTask.on('state_changed',
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          setUploadProgress(Math.round(progress));
+        },
+        (error) => {
+          console.error('Upload error:', error);
+          alert('Error al subir la imagen: ' + error.message);
           setIsUploading(null);
-        } else {
-          setEvidenceBase64(base64);
+        },
+        async () => {
+          const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
+          if (paymentId) {
+            try {
+              await updateDoc(doc(db, 'payments', paymentId), { evidenceUrl: downloadUrl, updatedAt: Date.now() });
+            } catch (error) {
+              handleFirestoreError(error, OperationType.UPDATE, `payments/${paymentId}`);
+            }
+            setIsUploading(null);
+          } else {
+            setEvidenceUrl(downloadUrl);
+            setIsUploading(null);
+          }
         }
-      };
-      reader.readAsDataURL(file);
+      );
+    } catch (error: any) {
+      console.error('Error in handleFileChange:', error);
+      alert('Error: ' + error.message);
+      setIsUploading(null);
     }
   };
 
@@ -304,13 +327,24 @@ export const Payments: React.FC = () => {
                               <input 
                                 type="file" 
                                 accept="image/*" 
-                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
+                                capture="environment"
+                                title="Subir evidencia"
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" 
                                 onChange={(e) => handleFileChange(e, p.id)} 
                                 disabled={isUploading === p.id}
                               />
-                              <button className="flex items-center gap-1.5 px-3 py-1.5 text-white bg-slate-900 rounded-xl text-[10px] font-bold transition-all shadow-sm hover:bg-slate-800">
-                                {isUploading === p.id ? <Loader2 className="animate-spin" size={12} /> : <Upload size={12} />}
-                                Subir Evidencia
+                              <button className="flex items-center gap-2 px-4 py-2 text-white bg-slate-900 rounded-xl text-[10px] font-bold transition-all shadow-sm hover:bg-slate-800 active:scale-95 relative overflow-hidden">
+                                {isUploading === p.id ? (
+                                  <>
+                                    <Loader2 className="animate-spin" size={14} />
+                                    <span className="whitespace-nowrap">{uploadProgress}%</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Upload size={14} />
+                                    <span className="whitespace-nowrap">Subir Evidencia</span>
+                                  </>
+                                )}
                               </button>
                             </div>
                           )}
@@ -395,6 +429,32 @@ export const Payments: React.FC = () => {
                           <Receipt size={12} />
                           Ver
                         </button>
+                      )}
+                      {(user?.role === 'INQUILINO' || user?.role === 'ADMIN') && !p.evidenceUrl && p.status === 'PENDING' && (
+                        <div className="relative">
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            capture="environment"
+                            title="Subir evidencia"
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" 
+                            onChange={(e) => handleFileChange(e, p.id)} 
+                            disabled={isUploading === p.id}
+                          />
+                          <button className="flex items-center gap-1.5 px-2.5 py-1.5 text-white bg-slate-900 rounded-lg text-[10px] font-bold transition-all shadow-sm hover:bg-slate-800 active:scale-95 relative overflow-hidden">
+                            {isUploading === p.id ? (
+                              <>
+                                <Loader2 className="animate-spin" size={12} />
+                                <span>{uploadProgress}%</span>
+                              </>
+                            ) : (
+                              <>
+                                <Upload size={12} />
+                                <span>Subir</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
                       )}
                       {user?.role === 'ADMIN' && p.status === 'PENDING' && (
                         <>
@@ -483,15 +543,23 @@ export const Payments: React.FC = () => {
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Comprobante (Requerido)</label>
                   <div className="flex items-center gap-4">
-                    <label className="flex-1 cursor-pointer bg-slate-50 hover:bg-slate-100 border border-slate-200 border-dashed p-4 rounded-2xl flex flex-col items-center justify-center transition-all group">
+                    <label className="flex-1 cursor-pointer bg-slate-50 hover:bg-slate-100 border border-slate-200 border-dashed p-4 rounded-2xl flex flex-col items-center justify-center transition-all group relative overflow-hidden">
+                      {isUploading === 'new' && (
+                        <div className="absolute inset-0 bg-emerald-500/10 flex items-center justify-center">
+                          <div className="flex flex-col items-center">
+                            <Loader2 className="animate-spin text-emerald-500 mb-1" size={24} />
+                            <span className="text-[10px] font-bold text-emerald-600">{uploadProgress}%</span>
+                          </div>
+                        </div>
+                      )}
                       <Camera size={24} className="text-slate-300 group-hover:text-emerald-500 mb-2" />
-                      <span className="text-xs font-bold text-slate-400 group-hover:text-slate-600">{evidenceBase64 ? 'Cambiar Foto' : 'Subir Foto'}</span>
-                      <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" required={!evidenceBase64} />
+                      <span className="text-xs font-bold text-slate-400 group-hover:text-slate-600">{evidenceUrl ? 'Cambiar Foto' : 'Subir Foto'}</span>
+                      <input type="file" accept="image/*" capture="environment" title="Subir evidencia" onChange={(e) => handleFileChange(e)} className="hidden" required={!evidenceUrl} disabled={!!isUploading} />
                     </label>
-                    {evidenceBase64 && (
+                    {evidenceUrl && (
                       <div className="relative w-20 h-20">
-                        <img src={evidenceBase64} alt="Preview" className="w-full h-full object-cover rounded-2xl border border-slate-200 shadow-sm" />
-                        <button type="button" onClick={() => setEvidenceBase64(null)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-lg"><X size={12} /></button>
+                        <img src={evidenceUrl} alt="Preview" className="w-full h-full object-cover rounded-2xl border border-slate-200 shadow-sm" />
+                        <button type="button" onClick={() => setEvidenceUrl(null)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-lg"><X size={12} /></button>
                       </div>
                     )}
                   </div>
