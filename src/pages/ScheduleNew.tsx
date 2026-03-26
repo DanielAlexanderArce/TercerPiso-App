@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, orderBy, getDoc } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../firebase';
@@ -35,6 +36,7 @@ interface Schedule {
 }
 
 export const SchedulePage: React.FC = () => {
+  const navigate = useNavigate();
   const { user, loading } = useAuth();
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [users, setUsers] = useState<any[]>([]);
@@ -189,61 +191,72 @@ export const SchedulePage: React.FC = () => {
         }, 
         (error) => {
           console.error('Upload error details:', error);
-          alert('Error al subir la imagen: ' + error.message);
           setIsUploading(null);
           setUploadProgress(prev => {
             const next = { ...prev };
             delete next[uploadKey];
             return next;
           });
+          navigate('/error', { state: { error: error.message || error } });
         }, 
         async () => {
-          console.log('Upload completed, getting download URL...');
-          const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
-          console.log('Download URL obtained:', downloadUrl);
-          
-          // Fetch latest doc to avoid stale state issues
-          const scheduleRef = doc(db, 'schedules', scheduleId);
-          const scheduleSnap = await getDoc(scheduleRef);
-          if (!scheduleSnap.exists()) {
-            throw new Error('El documento de limpieza no existe');
-          }
-          const latestSchedule = scheduleSnap.data();
-
-          const updatedAssignments = latestSchedule.assignments.map((a: any) => {
-            if (a.role === role) {
-              const currentUrls = a.evidenceUrls || [];
-              return {
-                ...a,
-                evidenceUrls: [...currentUrls, downloadUrl]
-              };
+          try {
+            console.log('Upload completed, getting download URL...');
+            const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
+            console.log('Download URL obtained:', downloadUrl);
+            
+            // Fetch latest doc to avoid stale state issues
+            const scheduleRef = doc(db, 'schedules', scheduleId);
+            const scheduleSnap = await getDoc(scheduleRef);
+            if (!scheduleSnap.exists()) {
+              throw new Error('El documento de limpieza no existe');
             }
-            return a;
-          });
+            const latestSchedule = scheduleSnap.data();
 
-          await updateDoc(scheduleRef, {
-            assignments: updatedAssignments,
-            updatedAt: Date.now()
-          });
-          console.log('Firestore updated successfully');
-          
-          setIsUploading(null);
-          setUploadProgress(prev => {
-            const next = { ...prev };
-            delete next[uploadKey];
-            return next;
-          });
+            const updatedAssignments = latestSchedule.assignments.map((a: any) => {
+              if (a.role === role) {
+                const currentUrls = a.evidenceUrls || [];
+                return {
+                  ...a,
+                  evidenceUrls: [...currentUrls, downloadUrl]
+                };
+              }
+              return a;
+            });
+
+            await updateDoc(scheduleRef, {
+              assignments: updatedAssignments,
+              updatedAt: Date.now()
+            });
+            console.log('Firestore updated successfully');
+            
+            setIsUploading(null);
+            setUploadProgress(prev => {
+              const next = { ...prev };
+              delete next[uploadKey];
+              return next;
+            });
+          } catch (error: any) {
+            console.error('Error updating Firestore after upload:', error);
+            setIsUploading(null);
+            setUploadProgress(prev => {
+              const next = { ...prev };
+              delete next[uploadKey];
+              return next;
+            });
+            navigate('/error', { state: { error: error.message || error } });
+          }
         }
       );
     } catch (error: any) {
       console.error('Error in handleFileUpload:', error);
-      alert('Error: ' + error.message);
       setIsUploading(null);
       setUploadProgress(prev => {
         const next = { ...prev };
         delete next[uploadKey];
         return next;
       });
+      navigate('/error', { state: { error: error.message || error } });
     }
   };
 

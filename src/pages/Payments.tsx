@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { collection, query, onSnapshot, addDoc, updateDoc, doc, orderBy, where, getDoc } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../firebase';
@@ -15,6 +16,7 @@ import { ConfirmModal } from '../components/ConfirmModal';
 import { cn } from '../utils/cn';
 
 export const Payments: React.FC = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -117,28 +119,30 @@ export const Payments: React.FC = () => {
         },
         (error) => {
           console.error('Upload error:', error);
-          alert('Error al subir la imagen: ' + error.message);
           setIsUploading(null);
+          navigate('/error', { state: { error: error.message || error } });
         },
         async () => {
-          const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
-          if (paymentId) {
-            try {
+          try {
+            const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
+            if (paymentId) {
               await updateDoc(doc(db, 'payments', paymentId), { evidenceUrl: downloadUrl, updatedAt: Date.now() });
-            } catch (error) {
-              handleFirestoreError(error, OperationType.UPDATE, `payments/${paymentId}`);
+              setIsUploading(null);
+            } else {
+              setEvidenceUrl(downloadUrl);
+              setIsUploading(null);
             }
+          } catch (error: any) {
+            console.error('Error updating Firestore after upload:', error);
             setIsUploading(null);
-          } else {
-            setEvidenceUrl(downloadUrl);
-            setIsUploading(null);
+            navigate('/error', { state: { error: error.message || error } });
           }
         }
       );
     } catch (error: any) {
       console.error('Error in handleFileChange:', error);
-      alert('Error: ' + error.message);
       setIsUploading(null);
+      navigate('/error', { state: { error: error.message || error } });
     }
   };
 
