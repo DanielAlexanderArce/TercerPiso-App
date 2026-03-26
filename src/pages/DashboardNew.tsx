@@ -115,16 +115,24 @@ export const Dashboard: React.FC = () => {
       const storageRef = ref(storage, `evidence/${scheduleId}/${role}/${Date.now()}_compressed.jpg`);
       
       const uploadTask = uploadBytesResumable(storageRef, compressedBlob);
+      console.log('Upload task created, starting monitoring...');
 
       uploadTask.on('state_changed', 
         (snapshot) => {
           const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          console.log(`Upload progress: ${progress}%`);
+          console.log(`Upload progress for ${uploadKey}: ${progress.toFixed(2)}%`);
           setUploadProgress(prev => ({ ...prev, [uploadKey]: Math.round(progress) }));
         }, 
         (error) => {
-          console.error('Upload error details:', error);
-          alert('Error al subir la imagen: ' + error.message);
+          console.error('CRITICAL: Upload failed for', uploadKey, error);
+          // Check for common storage errors
+          let message = error.message;
+          if (error.code === 'storage/unauthorized') {
+            message = 'Permisos insuficientes en Storage. Por favor contacta al administrador.';
+          } else if (error.code === 'storage/quota-exceeded') {
+            message = 'Cuota de almacenamiento excedida.';
+          }
+          alert('Error al subir la imagen: ' + message);
           setIsUploading(null);
           setUploadProgress(prev => {
             const next = { ...prev };
